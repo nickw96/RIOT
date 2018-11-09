@@ -68,6 +68,10 @@ extern "C" {
 #define CC110X_PARAM_CHANNELS       (&cc110x_chanmap_868mhz_lora)
 #endif
 
+#ifndef CC110X_PARAM_CCA_THRESHOLD
+#define CC110X_PARAM_CCA_THRESHOLD  (-60)
+#endif
+
 #ifndef CC110X_PARAMS
 #define CC110X_PARAMS               { \
         .spi      = CC110X_PARAM_SPI,  \
@@ -79,6 +83,7 @@ extern "C" {
         .patable  = CC110X_PARAM_PATABLE, \
         .config   = CC110X_PARAM_CONFIG, \
         .channels = CC110X_PARAM_CHANNELS, \
+        .cca_thr  = CC110X_PARAM_CCA_THRESHOLD, \
 }
 
 #endif

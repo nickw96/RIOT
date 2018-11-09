@@ -319,6 +319,11 @@ static int cc110x_init(netdev_t *netdev)
     }
     cc110x_write(dev, CC110X_REG_ADDR, dev->addr);
 
+#ifdef MODULE_CC110X_CCA
+    /* Set CCA threshold to default value provided in params */
+    dev->cca_thr = dev->params.cca_thr;
+#endif /* MODULE_CC110X_CCA */
+
     /* Setup interrupt on GDO0  */
     if (gpio_init_int(dev->params.gdo0, GPIO_IN, GPIO_BOTH,
                       cc110x_on_gdo, dev)) {
@@ -405,6 +410,37 @@ static int cc110x_recv(netdev_t *netdev, void *buf, size_t len, void *info)
     return size;
 }
 
+#ifdef MODULE_CC110X_CCA
+/**
+ * @brief Check if the given channel is clear
+ *
+ * @retval  1   Channel is clear
+ * @retval  0   Channel is not clear
+ * @retval -1   CCA is not available (not in RX mode)
+ *
+ * @pre   @p dev has been acquired using @ref cc110x_acquire
+ * post   @p dev is still required and needs to be released
+ */
+static int cc110x_is_channel_clear(cc110x_t *dev)
+{
+    int8_t rssi_raw;
+    int16_t rssi;
+
+    if (dev->state != CC110X_STATE_RX) {
+        return -1;
+    }
+
+    cc110x_read_workarround(dev, CC110X_REG_RSSI, (uint8_t *)&rssi_raw);
+    rssi = (int16_t)(rssi_raw / 2) - dev->rssi_offset;
+    if (rssi >= dev->cca_thr) {
+        DEBUG("[cc110x] Channel is busy (%idBm)\n", (int)rssi);
+        return 0;
+    }
+
+    return 1;
+}
+#endif /* CC110X_CCA */
+
 static int cc110x_send(netdev_t *netdev, const iolist_t *iolist)
 {
     cc110x_t *dev = (cc110x_t *)netdev;
@@ -464,6 +500,19 @@ static int cc110x_send(netdev_t *netdev, const iolist_t *iolist)
     /* cc110x_framebuf_t has the same memory layout as the device expects */
     cc110x_burst_write(dev, CC110X_MULTIREG_FIFO,
                        &dev->buf, dev->buf.pos + 1);
+
+#ifdef MODULE_CC110X_CCA
+    if (cc110x_is_channel_clear(dev) == 0) {
+        dev->netdev.event_callback(&dev->netdev, NETDEV_EVENT_TX_MEDIUM_BUSY);
+        /* Only in IDLE flushing TX is allowed */
+        cc110x_cmd(dev, CC110X_STROBE_IDLE);
+        cc110x_cmd(dev, CC110X_STROBE_FLUSH_TX);
+        /* Go back to RX (restores IRQs) and return failure */
+        cc110x_rx(dev);
+        cc110x_release(dev);
+        return -1;
+    }
+#endif /* MODULE_CC110X_CCA */
 
     /* Go to TX */
     cc110x_cmd(dev, CC110X_STROBE_TX);
@@ -556,6 +605,25 @@ static int cc110x_get(netdev_t *netdev, netopt_t opt,
             assert(max_len == sizeof(uint16_t));
             *((uint16_t *)val) = dbm_from_tx_power[dev->tx_power];
             return sizeof(uint16_t);
+#ifdef MODULE_CC110X_CCA
+        case NETOPT_IS_CHANNEL_CLR:
+            assert(max_len == sizeof(netopt_enable_t));
+            if (cc110x_acquire(dev) != SPI_OK) {
+                return -EIO;
+            }
+            if (cc110x_is_channel_clear(dev) == 1) {
+                *((netopt_enable_t *)val) = NETOPT_ENABLE;
+            }
+            else {
+                *((netopt_enable_t *)val) = NETOPT_DISABLE;
+            }
+            cc110x_release(dev);
+            return sizeof(netopt_enable_t);
+        case NETOPT_CCA_THRESHOLD:
+            assert(max_len == sizeof(int8_t));
+            *((int8_t *)val) = dev->cca_thr;
+            return sizeof(int8_t);
+#endif /* MODULE_CC110X_CCA */
         default:
             return -ENOTSUP;
     }
@@ -617,6 +685,12 @@ static int cc110x_set(netdev_t *netdev, netopt_t opt,
             }
         }
             return sizeof(uint16_t);
+#ifdef MODULE_CC110X_CCA
+        case NETOPT_CCA_THRESHOLD:
+            assert(len == sizeof(int8_t));
+            dev->cca_thr = *((int8_t *)val);
+            return sizeof(int8_t);
+#endif /* MODULE_CC110X_CCA */
         default:
             return -ENOTSUP;
     }

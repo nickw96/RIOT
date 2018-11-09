@@ -101,6 +101,8 @@ PSEUDOMODULES += ccs811_full
 PSEUDOMODULES += cc1100
 PSEUDOMODULES += cc1100e
 PSEUDOMODULES += cc1101
+# enable CCA support for CC110X transceivers
+PSEUDOMODULES += cc110x_cca
 
 # include variants of SX127X drivers as pseudo modules
 PSEUDOMODULES += sx1272

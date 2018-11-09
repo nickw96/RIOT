@@ -180,6 +180,37 @@
  * board is build for. E.g. most break out boards operate at 433MHz, but there
  * are also boards for 868MHz.
  *
+ *
+ * Medium Access Control (MAC)
+ * ===========================
+ *
+ * This driver supports two old textbook MAC protocols: ALOHA and Channel
+ * Clear Assessment (CCA). By default ALOHA is used, which is suitable when the
+ * communication channel is expected to be free most of the time. Using ALOHA in
+ * "noisy" channels will result in high amounts of interference, thus CCA
+ * should be selected then.
+ *
+ * ALOHA
+ * -----
+ * (Norman Abramsons original paper)[https://doi.org/10.1145/1478462.1478502]
+ * from 1970 on ALOHA is a surprisingly good read even today. The MAC protocol
+ * will basically just use the channel whenever a frame to send is available,
+ * without trying to prevent collisions at all. This does make sense when the
+ * effort of other MAC protocols does not justify the gain, e.g. when only
+ * a few devices communicate at a low frequency.
+ *
+ * Clear Channel Assessment (CCA)
+ * ---------------------------------------------------------------------
+ * Clear Channel Assessment (CCA) can be enabled using the pseudo module
+ * `cc110x_cca` and will result in a minor increase in ROM size and in possibly
+ * in more interrupts to handle, as frames send to other devices will only
+ * be dropped at the end of the transmission, instead of once the destination
+ * address is received.
+ *
+ * In CCA mode the `cc110x` driver will only send data if the received RSSI
+ * is below the value in @ref cc110x_t::cca_thr (given in dBm) *and* the
+ * transceiver is not receiving a frame (no matter at which RSSI)
+ *
  * @{
  *
  * @file
@@ -462,6 +493,7 @@ typedef struct {
      *        the CPU ID
      */
     uint8_t l2addr;
+    int8_t cca_thr;                     /**< Default threshold for CCA in dBm */
 } cc110x_params_t;
 
 /**
@@ -534,6 +566,7 @@ typedef struct {
      */
     mutex_t isr_signal;
     uint8_t rssi_offset;                /**< dBm to subtract from raw RSSI data */
+    int8_t cca_thr;                     /**< Threshold for CCA in dBm */
 } cc110x_t;
 
 /**

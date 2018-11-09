@@ -73,18 +73,28 @@ const char cc110x_conf[CC110X_CONF_SIZE] = {
      * PQT: Accept all sync words, regardless of preamble quality
      * CRC_AUTOFLUSH: Do not auto-flush RX FIFO on incorrect CRC
      * APPEND_STATUS: Do not add 2 bytes of status information in RX FIFO
-     * ADDR_CHK:  Filter incoming frames in hardware by address: Only frames
+     * ADDR_CHK:
+     *  a) ALOHA: Filter incoming frames in hardware by address: Only frames
      *            with destination address 0x00 (broadcast) or with with the
      *            layer-2 address of the transceiver are accepted.
+     *  b)   CCA: Don't perform hardware address check
      *
      * Why not default?
      * - The RSSI, LQI and CRC info are also available via status registers.
      *   Thus, it is not worth to sacrifice two bytes of RX FIFO for it.
-     * - Hardware address filtering could reduce the number IRQs generated
-     *   (e.g. a huge frame is dropped before it fully received) which reduces
-     *   the system's load. Thus, it is enabled.
+     * - When CCA is used we do not want to interfere with other transmissions.
+     *   The driver will not send frames while it is receiving frames, thus
+     *   not dropping frames during reception prevents interference, even if
+     *   the RSSI is below threshold. We will perform address filtering in
+     *   software with CCA.
      */
-    0x02,
+#ifdef MODULE_CC110X_CCA
+    0x00, /*< Do not filter addresses, so we stay aware when channel is busy
+           *  even when RSSI is below threshold */
+#else
+    0x02, /*< Perform hw address filtering and drop frames not directed at us
+           *  to reduce number of IRQs we need to handle */
+#endif
     /*
      * PKTCTRL0; default: 0x45
      * Data whitening enabled, use RX/TX FIFOs, CRC enabled,

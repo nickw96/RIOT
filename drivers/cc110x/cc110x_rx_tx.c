@@ -60,6 +60,15 @@ static netdev_event_t cc110x_rx_done(cc110x_t *dev)
     uint8_t lqi_crc;
     int8_t rssi;
 
+#ifdef MODULE_CC110X_CCA
+    if ((dev->buf.data[0] != 0x00) && (dev->buf.data[0] != dev->addr)) {
+        DEBUG("[cc110x] ISR: Destination address doesn't match transceivers "
+              "--> drop\n");
+        cc110x_rx(dev);
+        return NETDEV_NO_EVENT;
+    }
+#endif
+
     cc110x_read(dev, CC110X_REG_LQI, &lqi_crc);
     cc110x_read(dev, CC110X_REG_RSSI, (uint8_t *)&rssi);
 

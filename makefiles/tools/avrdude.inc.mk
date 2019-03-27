@@ -2,8 +2,18 @@ FLASHER = avrdude
 AVARICE_PATH = $(RIOTTOOLS)/avarice
 DEBUGSERVER_PORT = 4242
 DEBUGSERVER = $(AVARICE_PATH)/debug_srv.sh
-DEBUGSERVER_INTERFACE ?=
-DEBUGSERVER_FLAGS = "-g -j usb $(DEBUGSERVER_INTERFACE) :$(DEBUGSERVER_PORT)"
+# Allow choosing debugger hardware via DEBUGDEVICE, default to AVR Dragon, which
+# is compatible to all AVR devices and the least expensive module
+DEBUGDEVICE ?= -g
+DEBUGINTERFACE ?= usb
+ifneq (,$(filter $(CPU),atmega328p))
+  # Use debugWIRE as protocol for debugging (ATmega328P does not support JTAG)
+  DEBUGPROTO := -w
+else
+  # Use JTAG as protocol for debugging
+  DEBUGPROTO := -j $(DEBUGINTERFACE)
+endif
+DEBUGSERVER_FLAGS = "$(DEBUGDEVICE) $(DEBUGPROTO) :$(DEBUGSERVER_PORT)"
 DEBUGGER_FLAGS = "-x $(AVARICE_PATH)/gdb.conf $(ELFFILE)"
 DEBUGGER = "$(AVARICE_PATH)/debug.sh" $(DEBUGSERVER_FLAGS) $(AVARICE_PATH) $(DEBUGSERVER_PORT)
 

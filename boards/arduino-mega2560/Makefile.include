@@ -9,8 +9,16 @@ BAUD        ?= 9600
 # using avrdude. Can be overridden for debugging (which requires changes
 # that require to use an ISP)
 PROGRAMMER ?= stk500v2
-# configure programmer speed in baud
-FFLAGS_EXTRA += -b 115200
+
+ifeq (stk500v2,$(PROGRAMMER))
+  # configure programmer speed in baud
+  FFLAGS_EXTRA += -b 115200
+  # disable auto erase to work around a bug in the bootloader
+  # (Erasing the flash is required prior to programming. Usually avrdude will
+  # perform that erasing. The bootloader of the Arduino Mega2560 fails on
+  # erasing the flash, but erases it implicitly prior to writing it.)
+  FFLAGS_EXTRA += -D
+endif
 
 BOOTLOADER_SIZE ?= 8K
 ROM_RESERVED ?= $(BOOTLOADER_SIZE)

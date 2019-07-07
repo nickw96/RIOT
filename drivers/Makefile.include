@@ -218,6 +218,10 @@ ifneq (,$(filter pir,$(USEMODULE)))
   USEMODULE_INCLUDES += $(RIOTBASE)/drivers/pir/include
 endif
 
+ifneq (,$(filter pms5003,$(USEMODULE)))
+  USEMODULE_INCLUDES += $(RIOTBASE)/drivers/pms5003/include
+endif
+
 ifneq (,$(filter pulse_counter,$(USEMODULE)))
   USEMODULE_INCLUDES += $(RIOTBASE)/drivers/pulse_counter/include
 endif

@@ -330,6 +330,13 @@ void auto_init(void)
     auto_init_sht1x();
 #endif
 
+#ifdef MODULE_PMS5003
+    /* The pms5003 module needs to be initialized regardless of SAUL being used
+     */
+    extern void auto_init_pms5003(void);
+    auto_init_pms5003();
+#endif
+
 #ifdef MODULE_AUTO_INIT_SAUL
     DEBUG("auto_init SAUL\n");
 

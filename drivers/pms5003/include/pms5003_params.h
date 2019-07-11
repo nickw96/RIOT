@@ -21,6 +21,7 @@
 
 #include "board.h"
 #include "pms5003.h"
+#include "saul_reg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,11 +48,29 @@ extern "C" {
 /**@}*/
 
 /**
+ * @name    Set default SAUL info text for the PMS5003
+ * @{
+ */
+#ifndef PMS5003_SAULINFO
+#define PMS5003_SAULINFO              { .name = "PMS5003 PM1.0, PM2.5, PM10" }
+#endif
+
+/**@}*/
+
+/**
  * @brief   Configure PMS5003 devices
  */
 static const pms5003_params_t pms5003_params[] =
 {
     PMS5003_PARAMS
+};
+
+/**
+ * @brief   Allocate and configure entries to the SAUL registry
+ */
+static const saul_reg_info_t pms5003_saul_info[] =
+{
+    PMS5003_SAULINFO
 };
 
 #ifdef __cplusplus

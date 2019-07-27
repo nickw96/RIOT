@@ -46,6 +46,12 @@
  */
 
 /**
+ * @defgroup    drivers_rfid RFID Reader Drivers
+ * @ingroup     drivers
+ * @brief       Drivers for RFID readers
+ */
+
+/**
  * @defgroup    drivers_storage Storage Device Drivers
  * @ingroup     drivers
  * @brief       Drivers for storage devices

@@ -1,5 +1,6 @@
 FEATURES_PROVIDED += periph_flashpage
 FEATURES_PROVIDED += periph_flashpage_raw
+FEATURES_PROVIDED += periph_gpio_abc
 FEATURES_PROVIDED += periph_rtc
 
 FEATURES_CONFLICT += periph_rtc:periph_rtt

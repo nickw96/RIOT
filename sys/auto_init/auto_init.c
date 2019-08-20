@@ -620,4 +620,9 @@ void auto_init(void)
     test_utils_interactive_sync();
 #endif
 #endif /* MODULE_TEST_UTILS_INTERACTIVE_SYNC */
+
+#ifdef MODULE_AUTO_INIT_MULTIMEDIA
+    DEBUG("auto_init MULTIMEDIA\n");
+
+#endif /* MODULE_AUTO_INIT_MULTIMEDIA */
 }

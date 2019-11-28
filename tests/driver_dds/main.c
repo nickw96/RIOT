@@ -91,6 +91,8 @@ static const uint8_t sine[] = {
     0x00, 0x02, 0x0a, 0x16,  0x25, 0x39, 0x4f, 0x67
 };
 
+static const uint8_t constant_wave[] = { 0x00 };
+
 static const shell_command_t shell_commands[] = {
     { "play", "Play a sine wave", sc_play },
     { "music", "Play music", sc_music },
@@ -251,16 +253,8 @@ static dds_t dds;
 
 static void pause(uint16_t duration_ms)
 {
-    unsigned step = dds.timeout;
-    unsigned last = timer_read(dds.timer);
-
-    while (duration_ms >= step) {
-        unsigned cur = timer_read(dds.timer);
-        if (cur != last) {
-            duration_ms -= step;
-        }
-        last = cur;
-    }
+    dds_play(&dds, constant_wave, sizeof(constant_wave), 440, duration_ms,
+             DDS_MODE_BLOCK);
 }
 
 static int sc_play(int argc, char **argv)
@@ -329,6 +323,8 @@ int main(void)
         "  f = Frequency in Hz\n"
         "  d = Duration in ms"
     );
+
+    sc_music(0, NULL);
 
     char line_buf[SHELL_DEFAULT_BUFSIZE];
     shell_run(shell_commands, line_buf, SHELL_DEFAULT_BUFSIZE);

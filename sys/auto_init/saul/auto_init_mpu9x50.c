@@ -35,7 +35,7 @@
 /**
  * @brief   Allocate memory for the device descriptors
  */
-static mpu9x50_t mpu9x50_devs[MPU9X50_NUM];
+mpu9x50_t mpu9x50_devs[MPU9X50_NUM];
 
 /**
  * @brief   Memory for the SAUL registry entries

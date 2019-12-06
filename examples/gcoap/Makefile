@@ -38,6 +38,7 @@ USEMODULE += fmt
 USEMODULE += shell
 USEMODULE += shell_commands
 USEMODULE += ps
+USEMODULE += cc1101
 
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the
@@ -48,3 +49,9 @@ DEVELHELP ?= 1
 QUIET ?= 1
 
 include $(RIOTBASE)/Makefile.include
+CFLAGS += '-DCC110X_PARAM_CS=GPIO_PIN(PORT_A, 4)'
+CFLAGS += '-DCC110X_PARAM_GDO0=GPIO_PIN(PORT_B, 0)'
+CFLAGS += '-DCC110X_PARAM_GDO2=GPIO_PIN(PORT_B, 1)'
+CFLAGS += '-DCC110X_PARAM_PATABLE=(&cc110x_patable_868mhz)'
+CFLAGS += '-DCC110X_PARAM_CONFIG=(&cc110x_config_433mhz_250kbps_300khz)'
+CFLAGS += '-DCC110X_PARAM_CHANNELS=(&cc110x_chanmap_433mhz_300khz)'

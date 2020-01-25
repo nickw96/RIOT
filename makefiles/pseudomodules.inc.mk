@@ -1,3 +1,4 @@
+PSEUDOMODULES += adc_ng_%
 PSEUDOMODULES += at_urc
 PSEUDOMODULES += auto_init_dhcpv6_client
 PSEUDOMODULES += auto_init_gnrc_rpl

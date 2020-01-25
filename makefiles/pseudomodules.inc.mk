@@ -1,3 +1,4 @@
+PSEUDOMODULES += adc_ng_%
 PSEUDOMODULES += at_urc
 PSEUDOMODULES += can_mbox
 PSEUDOMODULES += can_pm

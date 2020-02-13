@@ -14,6 +14,46 @@
  * @brief       Internal types used in the common ADC API
  *
  * @author      Marian Buschsieweke <marian.buschsieweke@ovgu.de>
+ *
+ * Writing an ADC NG Backend
+ * =========================
+ *
+ * Terminology
+ * -----------
+ *
+ * - **Single Ended Input:** The ADC converts a single input voltage into
+ *   an unsigned value in which zero refers to 0V and the highest value
+ *   indicates that the input is equal to (or higher than) the reference
+ *   voltage.
+ * - **Differential Input:** The ADC use a positive and a negative input
+ *   and converts the voltage difference between the two into a signed value:
+ *   A value of zero indicates no voltage difference, a positive value that the
+ *   positive inputs is greater than the negative, and a negative value that
+ *   the negative inputs is greater than the positive. If the difference is
+ *   equal to the reference voltage, the highest (or lowest) value is returned.
+ *
+ * Channel Mapping
+ * ---------------
+ *
+ * Every ADC driver must at least one single ended input. All other channel
+ * types are optional. The initialization code in @ref adc_ng_driver_t::init
+ * must however be prepared to be called for every possible channel number and
+ * must return `-ENXIO` for unsupported channels. The channel number of the
+ * highest single ended channel must be given in the driver in
+ * @ref adc_ng_driver_t::highest_single_ended_channel. All channel numbers
+ * below this *must* also refer to single ended channels.
+ *
+ * Channels above the value given in
+ * @ref adc_ng_driver_t::highest_single_ended_channel but below 224 are driver
+ * specific and can be used to provide access to differential inputs, select
+ * different gains, etc.
+ *
+ * Channels starting from 224 are reserved for driver independent special
+ * channels. Those special channels currently are @ref ADC_NG_CHAN_FIXED_REF
+ * (to select a fixed reference voltage as input to allow measuring the value
+ * of other reference voltages), @ref ADC_NG_CHAN_NTC (that refers to an
+ * internally connected integrated thermistor), and @ref ADC_NG_CHAN_ENTROPY
+ * (to collect entropy).
  */
 
 #ifndef ADC_NG_INTERNAL_H
@@ -72,34 +112,11 @@ extern "C" {
 #define ADC_NG_CHAN_ENTROPY             (UINT8_MAX - 2)
 
 /**
- * @brief   Use this value in @ref adc_ng_driver_t::fixed_ref_input to
- *          indicate that no fixed reference can be used as input
+ * @brief   Use this value in @ref adc_ng_driver_t::ref_input_idx or
+ *          @ref adc_ng_driver_t::ref_vcc_idx to indicate that this feature
+ *          is not supported
  */
-#define ADC_NG_NO_FIXED_INPUT           (UINT8_MAX)
-
-/**
- * @brief   Flag to indicate the MCUs supply voltage is used as reference
- *
- * When a known, lower reference voltage can be selected as input and is
- * sampled using the MCU's VCC as reference, the MCU's VCC can be deduced.
- */
-#define ADC_NG_REF_MCU_VCC              (0x8000U)
-
-/**
- * @brief   Flag a reference voltage as calibrated
- *
- * E.g. the 1.1V bandgap voltage reference available on many ATmega has
- * production variations of +-100mV, but is extremely stable; so it will
- * consistently create the same voltage for a wide range of supply voltage and
- * operating temperatures. So if the actual value of the reference is e.g.
- * written to EEPROM and restored on boot, the reference value should be marked
- * as calibrated.
- */
-#define ADC_NG_REF_CALIBRATED           (0x4000U)
-/**
- * @brief   Access the voltage value without flags
- */
-#define ADC_NG_REF_MASK                 (0x3fffU)
+#define ADC_NG_NO_SUCH_REF              (UINT8_MAX)
 
 /**
  * @brief   Description of an thermistor to use for temperature measurements
@@ -131,7 +148,8 @@ typedef struct {
      * @param           handle  Handle of the ADC
      * @param[in]       chan    The ADC channel to initialize
      * @param[in]       res     The resolution to select
-     * @param[in        ref     Index of the reference to use (@ref adc_ng_driver_t::refs)
+     * @param[in        ref     Index of the reference to use
+     *                          (refers to @ref adc_ng_driver_t::refs)
      *
      * @retval  0               Success
      * @retval  -ENXIO          Invalid channel given in @p channel
@@ -143,8 +161,8 @@ typedef struct {
      * @post    If `-EALREADY` is returned, the ADC is state remains unchanged
      * @post    On other error codes the ADC is powered down
      *
-     * @note    A call to @ref adc_ng_driver_t::off is needed to disable the channel
-     *          again and preserve power
+     * @note    A call to @ref adc_ng_driver_t::off is needed to disable the
+     *          channelagain and preserve power
      */
     int (*init)(void *handle, uint8_t chan, uint8_t res, uint8_t ref);
     /**
@@ -152,6 +170,9 @@ typedef struct {
      *          power state, unless other ADC channels are still onchannel
      *
      * @param           handle  Handle of the ADC
+     *
+     * @details If no power saving is implemented (or possible), this should be
+     *          a `NULL` pointer.
      */
     void (*off)(void *handle);
     /**
@@ -169,7 +190,7 @@ typedef struct {
      * @retval  0           Success
      * @retval  <0          Error (check device driver's doc for error codes)
      */
-    int (*single)(void *handle, uint32_t *dest);
+    int (*single)(void *handle, int32_t *dest);
 #ifdef MODULE_ADC_BURST
     /**
      * @brief   Runs a burst conversion acquiring multiple samples in fast
@@ -187,14 +208,14 @@ typedef struct {
      * @retval  0           Success
      * @retval  <0          Error (check device driver's doc for error codes)
      */
-    int (*burst)(void *handle, uint32_t *dest, size_t num);
+    int (*burst)(void *handle, int32_t *dest, size_t num);
 #endif /* MODULE_ADC_BURST */
     /**
      * @brief   Bitmap containing the supported ADC resolutions
      *
      * If e.g. the resolutions 4bit, 6bit and 8bit are supported it should have
-     * the value `BIT4 | BIT6 | BIT8`. Thus, currently the highest resolution
-     * supported is 31 bit.
+     * the value `BIT3 | BIT5 | BIT7`. Thus, currently the highest resolution
+     * supported is 32 bit.
      */
     uint32_t res_supported;
     /**
@@ -207,7 +228,7 @@ typedef struct {
      * calibrated (@ref ADC_NG_REF_CALIBRATED) and if the MCUs supply voltage
      * is used as reference (@ref ADC_NG_REF_MCU_VCC).
      */
-    const uint16_t *refs;
+    const int16_t *refs;
     /**
      * @brief   Parameters of the internally connected thermistor or `NULL`
      */
@@ -222,10 +243,18 @@ typedef struct {
      * and use that index here. This will prevent that reference to be used
      * except as input.
      *
-     * Use the special value @ref ADC_NG_NO_FIXED_INPUT if no fixed reference
+     * Use the special value @ref ADC_NG_NO_SUCH_REF if no fixed reference
      * voltage can be used as input.
      */
-    uint8_t fixed_ref_input;
+    uint8_t ref_input_idx;
+    /**
+     * @brief   The index of the VCC reference voltage
+     *
+     * If VCC can be chosen as reference, this should give its index in
+     * @ref adc_ng_driver_t::refs. Otherwise it should have the value
+     * @ref ADC_NG_NO_SUCH_REF.
+     */
+    uint8_t ref_vcc_idx;
     /**
      * @brief   The number of least significant bits containing entropy
      *
@@ -238,24 +267,26 @@ typedef struct {
      * (so a value of `1`).
      */
     uint8_t entropy_bits;
+    /**
+     * @brief   The number of the highest single ended channel
+     *
+     * All channel with a number small than or equal to this value must be
+     * regular single ended channels. All channel higher than this number but
+     * lower than 224 are driver defined special channels (if any), e.g.
+     * differential inputs. All channels equal to 224 and above are reserved
+     * for driver-independent special channels like @ref ADC_NG_CHAN_FIXED_REF,
+     * @ref ADC_NG_CHAN_NTC, or @ref ADC_NG_CHAN_ENTROPY.
+     */
+    uint8_t highest_single_ended_channel;
 } adc_ng_driver_t;
 
 /**
- * @brief   Array containing pointer to the ADC drivers to used
+ * @brief   Type of the ADC-NG backend
  */
-extern const adc_ng_driver_t * const adc_ng_drivers[ADC_NG_NUMOF];
-/**
- * @brief   Array containing pointers to the handles the ADC drivers work on
- */
-extern void * const adc_ng_handles[ADC_NG_NUMOF];
-/**
- * @brief   Currently selected reference voltage in mV
- */
-extern uint16_t adc_ng_refs[ADC_NG_NUMOF];
-/**
- * @brief   Currently selected resolution
- */
-extern uint8_t adc_ng_res[ADC_NG_NUMOF];
+typedef struct {
+    const adc_ng_driver_t *driver;  /**< Driver interface of the backend */
+    void *handle;                   /**< Handle of the driver (e.g. device descriptor) */
+} adc_ng_backend_t;
 
 /**
  * @brief   Convert an ADC sample to a voltage level in mV
@@ -268,7 +299,7 @@ extern uint8_t adc_ng_res[ADC_NG_NUMOF];
  * @pre     The ADC identified by @p adc has not been re-initialized since
  *          taking the sample. (But it can be offline.)
  */
-uint16_t adc_ng_convert(uint8_t adc, uint32_t sample);
+int16_t adc_ng_convert(uint8_t adc, int32_t sample);
 
 /**
  * @brief   Measure the actual value of a reference voltage by selecting
@@ -279,7 +310,7 @@ uint16_t adc_ng_convert(uint8_t adc, uint32_t sample);
  * @param[in]       ref_idx     Index of the reference to measure
  * @param[out]      dest_mv     Measured value of the voltage reference in mV
  */
-int adc_ng_measure_ref(uint8_t adc, uint8_t ref_idx, uint16_t *dest_mv);
+int adc_ng_measure_ref(uint8_t adc, uint8_t ref_idx, int16_t *dest_mv);
 
 #ifdef __cplusplus
 }

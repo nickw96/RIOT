@@ -30,8 +30,8 @@
 #include <stdint.h>
 
 #include "adc_ng_internal.h"
+#include "adc_ng_globals.h"
 #include "bitarithm.h"
-#include "periph_conf.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,8 +61,9 @@ extern "C" {
 static inline int adc_ng_supports_res(uint8_t adc, uint8_t res)
 {
     assert(adc < ADC_NG_NUMOF);
-    assert(res < 32);
-    return ((res < 32) && (adc_ng_drivers[adc]->res_supported & (1 << res)));
+    assert((res <= 32) && (res > 0));
+    const adc_ng_backend_t be = adc_ng_backends[adc];
+    return (be.driver->res_supported & (1 << (res - 1)));
 }
 
 /**
@@ -73,7 +74,8 @@ static inline int adc_ng_supports_res(uint8_t adc, uint8_t res)
 static inline uint8_t adc_ng_max_res(uint8_t adc)
 {
     assert(adc < ADC_NG_NUMOF);
-    return (uint8_t)bitarithm_msb(adc_ng_drivers[adc]->res_supported);
+    const adc_ng_backend_t be = adc_ng_backends[adc];
+    return (uint8_t)(bitarithm_msb(be.driver->res_supported) + 1);
 }
 
 /**
@@ -84,7 +86,8 @@ static inline uint8_t adc_ng_max_res(uint8_t adc)
 static inline uint8_t adc_ng_min_res(uint8_t adc)
 {
     assert(adc < ADC_NG_NUMOF);
-    return (uint8_t)bitarithm_lsb(adc_ng_drivers[adc]->res_supported);
+    const adc_ng_backend_t be = adc_ng_backends[adc];
+    return (uint8_t)(bitarithm_lsb(be.driver->res_supported) + 1);
 }
 
 /** @} */
@@ -110,9 +113,18 @@ static inline uint8_t adc_ng_min_res(uint8_t adc)
  *
  * The reference voltage to use is given with @p ref in millivolt. The driver
  * will pick a reference voltage that is as close to @p ref as possible, but
- * not smaller. The actually chosen reference voltage is stored in @p ref.
+ * doesn't reduce the range. (The absolute value of the chosen reference is not
+ * smaller than the absolute value of the requested reference and it has the
+ * same sign as the requested reference.) The actually chosen reference voltage
+ * is stored in @p ref.
+ *
+ * E.g. if a device supports reference voltages -2.56V, -1.1V, 1.1V, and 2.56V
+ * and the user requests a reference voltage of 1.2V (`*ref == 1200`), the
+ * reference 2.56V is chosen even though 1.1V is a closer match. Otherwise
+ * input voltages above 1.1V would no longer be distinguishable. Similar if
+ * -1.3V is requested -2.56V is chosen over -1.1V.
  */
-int adc_ng_init(uint8_t adc, uint8_t chan, uint8_t res, uint16_t *ref);
+int adc_ng_init(uint8_t adc, uint8_t chan, uint8_t res, int16_t *ref);
 
 /**
  * @brief   Turn of the given ADC device
@@ -122,7 +134,36 @@ int adc_ng_init(uint8_t adc, uint8_t chan, uint8_t res, uint16_t *ref);
 static inline void adc_ng_off(uint8_t adc)
 {
     assert(adc < ADC_NG_NUMOF);
-    adc_ng_drivers[adc]->off(adc_ng_handles[adc]);
+    const adc_ng_backend_t be = adc_ng_backends[adc];
+    if (be.driver->off) {
+        be.driver->off(be.handle);
+    }
+}
+
+/**
+ * @brief   Return the number of the highest single ended channel of the
+ *          given ADC
+ *
+ * @param[in]       adc     ADC to get the number of the highest single
+ *                          ended channel of
+ *
+ * @details All channel from zero to the returned value are single ended
+ *          channels
+ * @note    Some ADCs might have "holes" in the channel map, e.g. channels
+ *          0, 1 and 3 might be available, but channel 2 is not supported.
+ *          Checking for the return value `-ENXIO` in @ref adc_ng_init can be
+ *          used to detect these "holes".
+ *
+ * A single ended input is the "normal" ADC channel where a single input
+ * voltage is converted into an unsigned integer with the value 0 referring to
+ * an input voltage of 0 V and the highest value referring to an input voltage
+ * equal to the voltage reference (or higher).
+ */
+static inline uint8_t adc_ng_highest_single_ended_channel(uint8_t adc)
+{
+    assert(adc < ADC_NG_NUMOF);
+    const adc_ng_backend_t be = adc_ng_backends[adc];
+    return be.driver->highest_single_ended_channel;
 }
 
 /**
@@ -144,12 +185,19 @@ static inline void adc_ng_off(uint8_t adc)
  *
  * @retval  0               Success
  * @retval  <0              A device specific error occurred
+ *
+ * @note    The sample is returned as signed integer to allow for differential
+ *          two ended channels: If the input voltage on the positive input is
+ *          lower than the voltage at the negative input the result should be
+ *          negative. For "normal" single ended inputs the result must always
+ *          be positive or zero.
  */
-static inline int adc_ng_single(uint8_t adc, uint32_t *dest)
+static inline int adc_ng_single(uint8_t adc, int32_t *dest)
 {
     assert(adc < ADC_NG_NUMOF);
     assert(dest);
-    return adc_ng_drivers[adc]->single(adc_ng_handles[adc], dest);
+    const adc_ng_backend_t be = adc_ng_backends[adc];
+    return be.driver->single(be.handle, dest);
 }
 
 /**
@@ -168,8 +216,11 @@ static inline int adc_ng_single(uint8_t adc, uint32_t *dest)
  * efficient implementation e.g. using DMA. If either the driver does not
  * provide such implementation, or the module `adc_ng_burst` is not used, a
  * slower but ROM-efficient fallback implementation is used instead.
+ *
+ * See @ref adc_ng_single on why @p dest is signed and how the sign is to be
+ * interpreted.
  */
-int adc_ng_burst(uint8_t adc, uint32_t *dest, size_t num);
+int adc_ng_burst(uint8_t adc, int32_t *dest, size_t num);
 
 /**
  * @brief   Initialize an ADC channel, perform a single conversion with
@@ -185,9 +236,9 @@ int adc_ng_burst(uint8_t adc, uint32_t *dest, size_t num);
  * Refer to the documentation of @ref adc_init for details on @p ref
  */
 static inline int adc_ng_quick(uint8_t adc, uint8_t chan,
-                               uint32_t *dest)
+                               int32_t *dest)
 {
-    uint16_t ref = ADC_NG_MAX_REF;
+    int16_t ref = ADC_NG_MAX_REF;
     int retval = adc_ng_init(adc, chan, adc_ng_max_res(adc), &ref);
     if (retval) {
         return retval;
@@ -221,9 +272,9 @@ static inline int adc_ng_quick(uint8_t adc, uint8_t chan,
  *          is with the right setup and ADC technically feasible, the accuracy
  *          of the result is more likely in the order of mV.
  */
-static inline int adc_ng_voltage(uint8_t adc, uint16_t *dest_mv)
+static inline int adc_ng_voltage(uint8_t adc, int16_t *dest_mv)
 {
-    uint32_t sample;
+    int32_t sample;
     int retval = adc_ng_single(adc, &sample);
     if (retval) {
         return retval;

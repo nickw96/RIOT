@@ -46,7 +46,7 @@ extern "C" {
  *
  * @pre     The ADC is currently offline, it will internally be initialized
  */
-int adc_ng_vcc(uint8_t adc, uint16_t *dest_mv);
+int adc_ng_vcc(uint8_t adc, int16_t *dest_mv);
 
 /**
  * @brief   Measure the temperature using a thermistor
@@ -79,11 +79,12 @@ int adc_ng_ntc(uint8_t adc, uint8_t chan, const adc_ng_ntc_t *ntc, int16_t *temp
 static inline int adc_ng_internal_ntc(uint8_t adc, int16_t *temp)
 {
     assert(adc < ADC_NG_NUMOF);
-    if (!adc_ng_drivers[adc]->ntc) {
+    const adc_ng_backend_t be = adc_ng_backends[adc];
+    if (!be.driver->ntc) {
         return -ENOTSUP;
     }
 
-    return adc_ng_ntc(adc, ADC_NG_CHAN_NTC, adc_ng_drivers[adc]->ntc, temp);
+    return adc_ng_ntc(adc, ADC_NG_CHAN_NTC, be.driver->ntc, temp);
 }
 
 /**

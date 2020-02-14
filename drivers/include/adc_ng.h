@@ -50,6 +50,14 @@ extern "C" {
  */
 
 /**
+ * @brief   Maximum resolution supported by the API
+ *
+ * @note    The maximum resolution supported by drivers can be and often is
+ *          lower than this value
+ */
+#define ADC_NG_MAX_RES                  (32U)
+
+/**
  * @brief   Check if the given ADC supports the given resolution
  *
  * @param[in]       adc     ADC device to check
@@ -61,7 +69,7 @@ extern "C" {
 static inline int adc_ng_supports_res(uint8_t adc, uint8_t res)
 {
     assert(adc < ADC_NG_NUMOF);
-    assert((res <= 32) && (res > 0));
+    assert((res <= ADC_NG_MAX_RES) && (res > 0));
     const adc_ng_backend_t be = adc_ng_backends[adc];
     return (be.driver->res_supported & (1 << (res - 1)));
 }
@@ -88,6 +96,67 @@ static inline uint8_t adc_ng_min_res(uint8_t adc)
     assert(adc < ADC_NG_NUMOF);
     const adc_ng_backend_t be = adc_ng_backends[adc];
     return (uint8_t)(bitarithm_lsb(be.driver->res_supported) + 1);
+}
+
+/**
+ * @brief   Select a resolution supported by the given ADC that is equal to
+ *          or greater than the requested resolution.
+ *
+ * @param[in]       adc     ADC to select an appropriate resolution of
+ * @param[in,out]   res     In: The resolution to select. Out: The resolution
+ *                          actually selected
+ * @param[out]      shift   The number of bits to shift samples to the right
+ *                          to achieve the requested resolution
+ *
+ * @retval  0               Success
+ * @retval  -ENOTSUP        No resolution equal to or greater than the requested
+ *                          found.
+ *
+ * Usage:
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
+ * uint8_t res = 10, shift;
+ * int32_t sample;
+ *
+ * if (adc_ng_select_res(adc, &res, &shift) {
+ *     return -1;
+ * }
+ *
+ * if (adc_ng_init(adc, res, channel, &reference_voltage) {
+ *    return -1;
+ * }
+ *
+ * if (adc_ng_single(adc, &sample)) {
+ *     return -1;
+ * }
+ *
+ * adc_ng_off(adc);
+ *
+ * sample >>= shift;
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * @note    In case of differential channels, the sample can be negative. In
+ *          that case an arithmetic right shift is required. Most (all?) C
+ *          compilers do so on signed types, but the C standard leaves it up
+ *          to the implementation to choose arithmetic or logical right shift.
+ *          For single ended ("normal") ADC channels samples are always positive
+ *          (or zero), and both flavours of right shift are fine.
+ */
+static inline int adc_ng_select_res(uint8_t adc, uint8_t *res, uint8_t *shift)
+{
+    assert(adc < ADC_NG_NUMOF);
+    assert((res != NULL));
+    uint8_t res_selected = *res;
+    while (!adc_ng_supports_res(adc, res_selected)) {
+        if (++res_selected > ADC_NG_MAX_RES) {
+            return -ENOTSUP;
+        }
+    }
+
+    if (shift) {
+        *shift = res_selected - *res;
+    }
+    *res = res_selected;
+    return 0;
 }
 
 /** @} */

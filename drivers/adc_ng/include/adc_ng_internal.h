@@ -65,18 +65,6 @@
 extern "C" {
 #endif
 
-#if !defined(ADC_NG_NUMOF) || defined(DOXYGEN)
-/**
- * @brief   Number of ADC devices supported
- *
- * If a board supports more than one ADC, it has to define `ADC_NG_NUMOF` in
- * `perpih_conf.h` and implement (but not declare)
- * `adc_ng_driver_t *adc_ng_drivers[ADC_NG_NUMOF]` and
- * `void *adc_ng_handles[ADC_NG_NUMOF]` (e.g. in `board.c`).
- */
-#define ADC_NG_NUMOF                    (1U)
-#endif
-
 /**
  * @brief   This special channel must refer to an internal fixed reference
  *          voltage used as input

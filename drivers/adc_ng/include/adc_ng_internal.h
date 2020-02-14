@@ -139,76 +139,102 @@ typedef struct {
     uint16_t offset;
 } adc_ng_ntc_t;
 
+
+/**
+ * @brief   Signature of @ref adc_ng_driver_t::init
+ *
+ * @param           handle  Handle of the ADC
+ * @param[in]       chan    The ADC channel to initialize
+ * @param[in]       res     The resolution to select
+ * @param[in        ref     Index of the reference to use
+ *                          (refers to @ref adc_ng_driver_t::refs)
+ *
+ * @retval  0               Success
+ * @retval  -ENXIO          Invalid channel given in @p channel
+ * @retval  -EALREADY       The ADC is already powered and configured
+ * @retval  <0              Other error (see device driver doc)
+ *
+ * @post    When 0 is returned, the channel @p channel is ready take samples
+ * @post    If @p res contains an unsupported resolution, an assert blows up
+ * @post    If `-EALREADY` is returned, the ADC is state remains unchanged
+ * @post    On other error codes the ADC is powered down
+ *
+ * @note    A call to @ref adc_ng_driver_t::off is needed to disable the
+ *          channel again and preserve power
+ */
+typedef int (*adc_ng_init_t)(void *handle, uint8_t chan, uint8_t res,
+                             uint8_t ref);
+
+/**
+ * @brief   Signature of @ref adc_ng_driver_t::off
+ *
+ * @param           handle  Handle of the ADC
+ */
+typedef void (*adc_ng_off_t)(void *handle);
+
+/**
+ * @brief   Signature of @ref adc_ng_driver_t::single
+ *
+ * @param           handle  Handle of the ADC
+ * @param[out]      dest    The sample will be stored here
+ *
+ * @return  The result of the conversion
+ *
+ * @pre     The ADC has been initialized, see @ref adc_ng_driver_t::init
+ *
+ * @post    If the ADC is not initialized, an assertion blows up
+ *
+ * @retval  0           Success
+ * @retval  <0          Error (check device driver's doc for error codes)
+ */
+typedef int (*adc_ng_single_t)(void *handle, int32_t *dest);
+
+/**
+ * @brief   Signature of @ref adc_ng_driver_t::burst
+ *
+ * @param           handle  Handle of the ADC
+ * @param[out]      dest    Buffer to write the results of the burst read to
+ * @param[in]       num     Number of samples to burst read
+ *
+ * @pre     The channel given in @p channel is currently initialized, see
+ *          @ref adc_ng_driver_t::init
+ *
+ * @post    If the ADC is not initialized, an assertion blows up
+ *
+ * @retval  0           Success
+ * @retval  <0          Error (check device driver's doc for error codes)
+ */
+typedef int (*adc_ng_burst_t)(void *handle, int32_t *dest, size_t num);
+
 /**
  * @brief   Internal driver interface
  */
 typedef struct {
     /**
      * @brief   Initialize the given ADC channel and prepare it for sampling
-     * @param           handle  Handle of the ADC
-     * @param[in]       chan    The ADC channel to initialize
-     * @param[in]       res     The resolution to select
-     * @param[in        ref     Index of the reference to use
-     *                          (refers to @ref adc_ng_driver_t::refs)
-     *
-     * @retval  0               Success
-     * @retval  -ENXIO          Invalid channel given in @p channel
-     * @retval  -EALREADY       The ADC is already powered and configured
-     * @retval  <0              Other error (see device driver doc)
-     *
-     * @post    When 0 is returned, the channel @p channel is ready take samples
-     * @post    If @p res contains an unsupported resolution, an assert blows up
-     * @post    If `-EALREADY` is returned, the ADC is state remains unchanged
-     * @post    On other error codes the ADC is powered down
      *
      * @note    A call to @ref adc_ng_driver_t::off is needed to disable the
-     *          channelagain and preserve power
+     *          channel again and preserve power
      */
-    int (*init)(void *handle, uint8_t chan, uint8_t res, uint8_t ref);
+    adc_ng_init_t init;
     /**
      * @brief   Disable the given ADC channel again and bring the ADC into a low
-     *          power state, unless other ADC channels are still onchannel
-     *
-     * @param           handle  Handle of the ADC
+     *          power state
      *
      * @details If no power saving is implemented (or possible), this should be
      *          a `NULL` pointer.
      */
-    void (*off)(void *handle);
+    adc_ng_off_t off;
     /**
      * @brief   Runs a single conversion and returns the sample
-     *
-     * @param           handle  Handle of the ADC
-     * @param[out]      dest    The sample will be stored here
-     *
-     * @return  The result of the conversion
-     *
-     * @pre     The ADC has been initialized, see @ref adc_ng_driver_t::init
-     *
-     * @post    If the ADC is not initialized, an assertion blows up
-     *
-     * @retval  0           Success
-     * @retval  <0          Error (check device driver's doc for error codes)
      */
-    int (*single)(void *handle, int32_t *dest);
+    adc_ng_single_t single;
 #ifdef MODULE_ADC_BURST
     /**
      * @brief   Runs a burst conversion acquiring multiple samples in fast
      *          succession
-     *
-     * @param           handle  Handle of the ADC
-     * @param[out]      dest    Buffer to write the results of the burst read to
-     * @param[in]       num     Number of samples to burst read
-     *
-     * @pre     The channel given in @p channel is currently initialized, see
-     *          @ref adc_ng_driver_t::init
-     *
-     * @post    If the ADC is not initialized, an assertion blows up
-     *
-     * @retval  0           Success
-     * @retval  <0          Error (check device driver's doc for error codes)
      */
-    int (*burst)(void *handle, int32_t *dest, size_t num);
+    adc_ng_burst_t burst;
 #endif /* MODULE_ADC_BURST */
     /**
      * @brief   Bitmap containing the supported ADC resolutions

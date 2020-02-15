@@ -217,13 +217,13 @@ typedef struct {
      * @brief   Runs a single conversion and returns the sample
      */
     adc_ng_single_t single;
-#ifdef MODULE_ADC_BURST
+#ifdef MODULE_ADC_NG_BURST
     /**
      * @brief   Runs a burst conversion acquiring multiple samples in fast
      *          succession
      */
     adc_ng_burst_t burst;
-#endif /* MODULE_ADC_BURST */
+#endif /* MODULE_ADC_NG_BURST */
     /**
      * @brief   Bitmap containing the supported ADC resolutions
      *

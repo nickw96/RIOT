@@ -92,7 +92,7 @@ int adc_ng_burst(uint8_t adc, int32_t *dest, size_t num)
     assert(adc < ADC_NG_NUMOF);
     assert(dest && num);
     const adc_ng_backend_t be = adc_ng_backends[adc];
-#ifdef MODULE_ADC_BURST
+#ifdef MODULE_ADC_NG_BURST
     if (be.driver->burst) {
         return be.driver->burst(be.handle, dest, num);
     }

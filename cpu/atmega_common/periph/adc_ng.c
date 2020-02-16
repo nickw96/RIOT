@@ -73,7 +73,7 @@
 
 #if CLOCK_CORECLOCK > 16000000U
 #define ADC_9BIT_CLOCK_DIV          (5U)
-#elif CLOCK_CORELOCK > 8000000U
+#elif CLOCK_CORECLOCK > 8000000U
 #define ADC_9BIT_CLOCK_DIV          (4U)
 #elif CLOCK_CORECLOCK > 4000000U
 #define ADC_9BIT_CLOCK_DIV          (3U)
@@ -344,6 +344,10 @@ static int _init(void *handle, uint8_t chan, uint8_t res, uint8_t ref)
         flags = FLAG_RSHIFT | FLAG_NOISE_CANCEL;
     }
 
+    DEBUG("ADC clock: %lu Hz, ADCSRA = 0x%x\n",
+          (unsigned long)(CLOCK_CORECLOCK >> (ADCSRA & 0x7)),
+          (unsigned)ADCSRA);
+
     irq_restore(state);
 
     setup_admux(chan, ref);
@@ -372,6 +376,8 @@ static int _init(void *handle, uint8_t chan, uint8_t res, uint8_t ref)
         }
     }
 
+    DEBUG("ADMUX = 0x%x, ADCSRA = 0x%x, ADCSRB = 0x%x\n", ADMUX, ADCSRA, ADCSRB);
+
     return 0;
 }
 
@@ -386,8 +392,6 @@ static int _single(void *handle, int32_t *dest)
     (void)handle;
     assert(dest != NULL);
     assert(ADCSRA & (1 << ADEN));
-
-    DEBUG("ADMUX = 0x%x, ADCSRA = 0x%x, ADCSRB = 0x%x\n", ADMUX, ADCSRA, ADCSRB);
 
     if (flags & FLAG_NOISE_CANCEL) {
         /* Wait for TX to complete */

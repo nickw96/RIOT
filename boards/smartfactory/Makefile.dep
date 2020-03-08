@@ -1,0 +1,7 @@
+USEMODULE += boards_common_blxxxpill
+
+ifneq (,$(filter netdev_default gnrc_netdev_default,$(USEMODULE)))
+  USEMODULE += cc1101
+endif
+
+include $(RIOTBOARD)/common/blxxxpill/Makefile.dep

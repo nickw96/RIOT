@@ -24,6 +24,7 @@ USEMODULE += netdev_eth
 USEMODULE += netdev_test
 USEMODULE += ps
 USEMODULE += sock_ip
+USEMODULE += sock_aux_local
 
 DISABLE_MODULE += auto_init_lwip
 

@@ -30,6 +30,28 @@ extern "C" {
 #endif
 
 /**
+ * @brief   Received frame status information for Ethernet devices
+ */
+typedef struct {
+    /**
+     * @brief   Time of the reception of the start of frame delimiter in
+     *          nanoseconds since epoch
+     */
+    uint64_t timestamp;
+} netdev_eth_rx_info_t;
+
+/**
+ * @brief   Transmitted frame status information for Ethernet devices
+ */
+typedef struct {
+    /**
+     * @brief   Time of the transmission of the start of frame delimiter in
+     *          nanoseconds since epoch
+     */
+    uint64_t timestamp;
+} netdev_eth_tx_info_t;
+
+/**
  * @brief   Fallback function for netdev ethernet devices' _get function
  *
  * Supposed to be used by netdev drivers as default case.

@@ -218,10 +218,15 @@ ssize_t sock_udp_recv_buf_aux(sock_udp_t *sock, void **data, void **buf_ctx,
     }
     tmp.family = sock->local.family;
     sock_ip_ep_t *local = NULL;
+    uint64_t *timestamp = NULL;
 #ifdef MODULE_SOCK_AUX_LOCAL
     local = (aux != NULL) ? (sock_ip_ep_t *)&aux->local : NULL;
 #endif
-    res = gnrc_sock_recv((gnrc_sock_reg_t *)sock, &pkt, timeout, &tmp, local);
+#ifdef MODULE_SOCK_AUX_TIMESTAMP
+    timestamp = (aux != NULL) ? &aux->timestamp : NULL;
+#endif
+    res = gnrc_sock_recv((gnrc_sock_reg_t *)sock, &pkt, timeout, &tmp, local,
+                         timestamp);
     if (res < 0) {
         return res;
     }
@@ -238,6 +243,10 @@ ssize_t sock_udp_recv_buf_aux(sock_udp_t *sock, void **data, void **buf_ctx,
 #ifdef MODULE_SOCK_AUX_LOCAL
         aux->flags |= SOCK_AUX_HAS_LOCAL;
         aux->local.port = sock->local.port;
+#endif
+#ifdef MODULE_SOCK_AUX_TIMESTAMP
+        if (aux->timestamp)
+            aux->flags |= SOCK_AUX_HAS_TIMESTAMP;
 #endif
     }
     if ((sock->remote.family != AF_UNSPEC) &&  /* check remote end-point if set */

@@ -90,7 +90,7 @@ void gnrc_sock_create(gnrc_sock_reg_t *reg, gnrc_nettype_t type, uint32_t demux_
 
 ssize_t gnrc_sock_recv(gnrc_sock_reg_t *reg, gnrc_pktsnip_t **pkt_out,
                        uint32_t timeout, sock_ip_ep_t *remote,
-                       sock_ip_ep_t *local)
+                       sock_ip_ep_t *local, uint64_t *timestamp)
 {
     gnrc_pktsnip_t *pkt, *netif;
     msg_t msg;
@@ -155,6 +155,9 @@ ssize_t gnrc_sock_recv(gnrc_sock_reg_t *reg, gnrc_pktsnip_t **pkt_out,
         memcpy(&local->addr, &ipv6_hdr->dst, sizeof(ipv6_addr_t));
         local->family = AF_INET6;
     }
+    if (timestamp != NULL) {
+        *timestamp = 0;
+    }
     netif = gnrc_pktsnip_search_type(pkt, GNRC_NETTYPE_NETIF);
     if (netif == NULL) {
         remote->netif = SOCK_ADDR_ANY_NETIF;
@@ -163,6 +166,9 @@ ssize_t gnrc_sock_recv(gnrc_sock_reg_t *reg, gnrc_pktsnip_t **pkt_out,
         gnrc_netif_hdr_t *netif_hdr = netif->data;
         /* TODO: use API in #5511 */
         remote->netif = (uint16_t)netif_hdr->if_pid;
+        if (timestamp != NULL) {
+            *timestamp = gnrc_netif_hdr_get_timestamp(netif_hdr);
+        }
     }
     *pkt_out = pkt; /* set out parameter */
 

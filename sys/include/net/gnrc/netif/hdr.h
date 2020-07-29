@@ -105,6 +105,9 @@ typedef struct {
     uint8_t flags;              /**< flags as defined above */
     uint8_t lqi;                /**< lqi of received packet (optional) */
     int16_t rssi;               /**< rssi of received packet in dBm (optional) */
+#if defined(MODULE_GNRC_NETIF_TIMESTAMP) || defined(DOXYGEN)
+    uint64_t timestamp;         /**< Timestamp of reception in nanoseconds since epoch */
+#endif /* MODULE_GNRC_NETIF_TIMESTAMP */
 } gnrc_netif_hdr_t;
 
 /**
@@ -199,6 +202,44 @@ static inline void gnrc_netif_hdr_set_dst_addr(gnrc_netif_hdr_t *hdr,
     }
 
     memcpy(((uint8_t *)(hdr + 1)) + hdr->src_l2addr_len, addr, addr_len);
+}
+
+/**
+ * @brief   Set the timestamp in the netif header
+ * @param[out]  hdr         Header to set the timestamp in
+ * @param[in]   timestamp   Timestamp to set (nanoseconds since epoch)
+ *
+ * @details If the module gnrc_netif_timestamp is not used, a call to this
+ *          function become a non-op (and will be fully optimized out by the
+ *          compiler)
+ */
+static inline void gnrc_netif_hdr_set_timestamp(gnrc_netif_hdr_t *hdr,
+                                                uint64_t timestamp)
+{
+    (void)hdr;
+    (void)timestamp;
+#ifdef MODULE_GNRC_NETIF_TIMESTAMP
+    hdr->timestamp = timestamp;
+#endif
+}
+
+/**
+ * @brief   Get the timestamp of the frame in nanoseconds since epoch
+ * @param[in]   hdr     Header to read the timestamp from
+ * @return  The timestamp in nanoseconds since epoch
+ * @retval      0       No timestamp available
+ *
+ * @details If the module gnrc_netif_timestamp is not used, this will always
+ *          return 0
+ */
+static inline uint64_t gnrc_netif_hdr_get_timestamp(const gnrc_netif_hdr_t *hdr)
+{
+    (void)hdr;
+#ifdef MODULE_GNRC_NETIF_TIMESTAMP
+    return hdr->timestamp;
+#else
+    return 0;
+#endif
 }
 
 #if defined(MODULE_GNRC_IPV6) || defined(DOXYGEN)

@@ -107,6 +107,9 @@ endif
 ifneq (,$(filter netopt,$(USEMODULE)))
   DIRS += net/crosslayer/netopt
 endif
+ifneq (,$(filter ptp,$(USEMODULE)))
+  DIRS += net/ptp
+endif
 ifneq (,$(filter sema,$(USEMODULE)))
   DIRS += sema
 endif

@@ -7,7 +7,6 @@ ifneq (,$(filter arduino,$(USEMODULE)))
   USEMODULE += $(SKETCH_MODULE)
 endif
 
-
 ifneq (,$(filter arduino,$(USEMODULE)))
   FEATURES_REQUIRED += arduino
   FEATURES_OPTIONAL += arduino_pwm
@@ -18,6 +17,10 @@ endif
 
 ifneq (,$(filter arduino_pwm,$(FEATURES_USED)))
   FEATURES_REQUIRED += periph_pwm
+endif
+
+ifneq (,$(filter auto_init_ptp_client,$(USEMODULE)))
+  USEMODULE += auto_init ptp
 endif
 
 ifneq (,$(filter eepreg,$(USEMODULE)))
@@ -991,3 +994,4 @@ ifneq (,$(filter ecc_%,$(USEMODULE)))
 endif
 
 include $(RIOTBASE)/sys/test_utils/Makefile.dep
+include $(RIOTBASE)/sys/net/Makefile.dep

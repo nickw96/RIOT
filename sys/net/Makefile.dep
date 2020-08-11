@@ -1,0 +1,14 @@
+ifneq (,$(filter ptp_client,$(USEMODULE)))
+  ifneq (,$(filter shell_commands,$(USEMODULE)))
+    USEMODULE += fmt
+  endif
+
+  FEATURES_OPTIONAL += periph_ptp_speed_adjustment
+  FEATURES_REQUIRED += periph_ptp
+  FEATURES_REQUIRED += periph_ptp_txrx_timestamps
+  USEMODULE += event_thread_medium
+  USEMODULE += gnrc_sock_async
+  USEMODULE += sock_udp
+  USEMODULE += sock_async_event
+  USEMODULE += sock_aux_timestamp
+endif

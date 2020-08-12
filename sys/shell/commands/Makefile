@@ -129,4 +129,8 @@ ifneq (,$(filter cryptoauthlib,$(USEPKG)))
   SRC += sc_cryptoauthlib.c
 endif
 
+ifneq (,$(filter periph_ptp,$(USEMODULE)))
+  SRC += sc_ptp.c
+endif
+
 include $(RIOTBASE)/Makefile.base

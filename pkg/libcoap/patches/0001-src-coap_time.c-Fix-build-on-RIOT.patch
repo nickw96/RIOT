@@ -1,0 +1,25 @@
+From c690df2eaa3a7e05b0cd6d18b742e065096ca0a7 Mon Sep 17 00:00:00 2001
+From: Marian Buschsieweke <marian.buschsieweke@ovgu.de>
+Date: Thu, 13 Aug 2020 11:02:30 +0200
+Subject: [PATCH] src/coap_time.c: Fix build on RIOT
+
+---
+ src/coap_time.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/coap_time.c b/src/coap_time.c
+index 1af76e0..124f3e1 100644
+--- a/src/coap_time.c
++++ b/src/coap_time.c
+@@ -8,7 +8,7 @@
+ 
+ #include "coap_internal.h"
+ 
+-#ifdef HAVE_TIME_H
++#if defined(HAVE_TIME_H) && !defined(RIOT_VERSION)
+ #include <time.h>
+ #ifdef HAVE_SYS_TIME_H
+ #include <sys/time.h>
+-- 
+2.28.0
+

@@ -1166,6 +1166,25 @@ void stm32_eth_common_init(void);
 #define HAVE_PTP_TIMER_SET_ABSOLUTE 1   /**< Native implementation available */
 /** @} */
 
+/**
+ * @brief   Enable the PTP pulse-per-second output on the given pin
+ *
+ * This will cause the given GPIO to emit a pulse signal at the frequency
+ * requested with @p freq. For 1 Hz a pulse width of 125 ms is generated, for
+ * all other frequencies a duty cycle of 50% is generated.
+ *
+ * @param[in]   output      The GPIO pin to output the signal at
+ * @param[in]   freq        Frequency to output. Must be a power of 2.
+ *
+ * @pre     @p output is either `GPIO_PIN(PORT_G, 8)` or `GPIO_PIN(PORT_B, 5)`
+ * @pre     @p freq is a power of two and at most 32,678
+ *
+ * @warning Frequencies different from 1 Hz are not recommended, as those will
+ *          generate irregular wave forms.
+ * @warning Currently only a frequency of 1 Hz is supported.
+ */
+void stm32_eth_ptp_enable_pps(gpio_t output, uint16_t freq);
+
 #ifdef __cplusplus
 }
 #endif

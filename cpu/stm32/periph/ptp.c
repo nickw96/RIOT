@@ -216,3 +216,15 @@ void ptp_timer_set_absolute(const ptp_timestamp_t *target)
           (unsigned)ETH->PTPTSCR, (unsigned)ETH->MACIMR, (unsigned)ETH->MACSR);
 }
 #endif /* IS_USED(MODULE_PTP_TIMER) */
+
+void stm32_eth_ptp_enable_pps(gpio_t output, uint16_t freq)
+{
+    assert((output == GPIO_PIN(PORT_B, 5)) || (output == GPIO_PIN(PORT_G, 8)));
+    /* We currently only support 1 Hz, as the PTPPPSCR register is not yet
+     * declared in the vendor header files. The reset value of this register
+     * is zero, which results in 2^0 = 1 Hz frequency */
+    assert(freq == 1);
+
+    /* route PPS signal to selected GPIO */
+    gpio_init_af(output, GPIO_AF11);
+}

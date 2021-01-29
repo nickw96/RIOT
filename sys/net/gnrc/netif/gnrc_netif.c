@@ -1610,7 +1610,14 @@ static gnrc_pktsnip_t * _process_events_await_msg(gnrc_netif_t *netif, netdev_t 
             }
             else {
                 int retval;
-                while (-EAGAIN == (retval = dev->driver->confirm_send(dev, NULL)))
+                void *tx_info = NULL;
+                if (IS_USED(MODULE_GNRC_TX_SYNC)) {
+                    gnrc_tx_sync_t *tx_sync = gnrc_tx_sync_search(tx_pkt);
+                    if (tx_sync) {
+                        tx_info = &tx_sync->tx_info;
+                    }
+                }
+                while (-EAGAIN == (retval = dev->driver->confirm_send(dev, tx_info)))
                 {
                     /* Per API contract, this should never happen, but in
                      * production code it might be better to busy wait here */

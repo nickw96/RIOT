@@ -491,6 +491,10 @@ static int stm32_eth_send(netdev_t *netdev, const struct iolist *iolist)
         if (!i) {
             /* fist chunk */
             status |= TX_DESC_STAT_FS;
+            if (IS_USED(MODULE_PERIPH_PTP) && IS_USED(MODULE_NETDEV_TX_INFO_TIMESTAMP)) {
+                /* enable time stamping for this frame */
+                status |= TX_DESC_STAT_TTSE;
+            }
         }
         if (!iolist->iol_next) {
             /* last chunk */
@@ -510,9 +514,9 @@ static int stm32_eth_send(netdev_t *netdev, const struct iolist *iolist)
 }
 
 
-static int stm32_eth_confirm_send(netdev_t *netdev, void *info)
+static int stm32_eth_confirm_send(netdev_t *netdev, void *_info)
 {
-    (void)info;
+    netdev_tx_info_t *info = _info;
     DEBUG("[stm32_eth] TX completed\n");
 
     /* Error check */
@@ -541,11 +545,20 @@ static int stm32_eth_confirm_send(netdev_t *netdev, void *info)
             }
             _reset_eth_dma();
         }
-        tx_curr = tx_curr->desc_next;
         tx_bytes += tx_curr->control;
         if (status & TX_DESC_STAT_LS) {
+            if (IS_USED(MODULE_PERIPH_PTP) && IS_USED(MODULE_NETDEV_TX_INFO_TIMESTAMP)) {
+                /* time stamp was requested, but check if it actually was captured via TTSS bit */
+                if (status & TX_DESC_STAT_TTSS) {
+                    info->timestamp = tx_curr->ts_low;
+                    info->timestamp += (uint64_t)tx_curr->ts_high * NS_PER_SEC;
+                    info->flags |= NETDEV_TX_INFO_FLAG_TIMESTAMP;
+                }
+            }
+            tx_curr = tx_curr->desc_next;
             break;
         }
+        tx_curr = tx_curr->desc_next;
     }
 
     netdev->event_callback(netdev, NETDEV_EVENT_TX_COMPLETE);

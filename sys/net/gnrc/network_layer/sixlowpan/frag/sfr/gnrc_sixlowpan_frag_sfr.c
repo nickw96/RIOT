@@ -29,6 +29,7 @@
 #include "net/gnrc/sixlowpan/frag/fb.h"
 #include "net/gnrc/sixlowpan/frag/rb.h"
 #include "net/gnrc/sixlowpan/frag/vrb.h"
+#include "net/gnrc/tx_sync.h"
 #include "net/sixlowpan/sfr.h"
 #include "thread.h"
 #include "unaligned.h"
@@ -154,12 +155,15 @@ static uint16_t _send_1st_fragment(gnrc_netif_t *netif,
  * @param[in] netif         Network interface to send fragment over
  * @param[in] fbuf          Fragmentation buffer for the datagram to fragment
  * @param[in] page          Current 6Lo dispatch parsing page.
+ * @param[in,out] tx_sync   Packet snip used to synchronize with transmission, if gnrc_tx_sync is
+ *                          used
  *
  * @return  Size of the fragment
  */
 static uint16_t _send_nth_fragment(gnrc_netif_t *netif,
                                    gnrc_sixlowpan_frag_fb_t *fbuf,
-                                   unsigned page);
+                                   unsigned page,
+                                   gnrc_pktsnip_t **tx_sync);
 
 /**
  * @brief   Send a abort pseudo fragment for datagram identified by @p tag
@@ -303,6 +307,7 @@ void gnrc_sixlowpan_frag_sfr_send(gnrc_pktsnip_t *pkt, void *ctx,
     gnrc_sixlowpan_frag_fb_t *fbuf = ctx;
     gnrc_netif_t *netif;
     int error_no = GNRC_NETERR_SUCCESS;
+    gnrc_pktsnip_t *tx_sync = NULL;
     uint16_t res;
 
     assert((fbuf != NULL) && ((fbuf->pkt == pkt) || (pkt == NULL)));
@@ -311,6 +316,10 @@ void gnrc_sixlowpan_frag_sfr_send(gnrc_pktsnip_t *pkt, void *ctx,
     assert(pkt->type == GNRC_NETTYPE_NETIF);
     netif = gnrc_netif_hdr_get_netif(pkt->data);
     assert(netif != NULL);
+
+    if (IS_USED(MODULE_GNRC_TX_SYNC)) {
+        tx_sync = gnrc_tx_sync_split(pkt);
+    }
 
     if (fbuf->offset == 0) {
         DEBUG("6lo sfr: sending first fragment\n");
@@ -328,7 +337,7 @@ void gnrc_sixlowpan_frag_sfr_send(gnrc_pktsnip_t *pkt, void *ctx,
     }
     else if (fbuf->offset < fbuf->datagram_size) {
         DEBUG("6lo sfr: sending subsequent fragment\n");
-        res = _send_nth_fragment(netif, fbuf, page);
+        res = _send_nth_fragment(netif, fbuf, page, &tx_sync);
         if (res == 0) {
             DEBUG("6lo sfr: error sending subsequent fragment (offset = %u)\n",
                   fbuf->offset);
@@ -368,6 +377,12 @@ void gnrc_sixlowpan_frag_sfr_send(gnrc_pktsnip_t *pkt, void *ctx,
         }
         _sched_arq_timeout(fbuf, fbuf->sfr.arq_timeout);
     }
+
+    if (IS_USED(MODULE_GNRC_TX_SYNC) && tx_sync) {
+        /* re-attach tx_sync to allow releasing it at end
+         * of transmission, or transmission failure */
+        gnrc_pkt_append(pkt, tx_sync);
+    }
     thread_yield();
     return;
 error:
@@ -380,6 +395,9 @@ error:
     }
     else {
         _clean_up_fbuf(fbuf, error_no);
+    }
+    if (IS_USED(MODULE_GNRC_TX_SYNC) && tx_sync) {
+        gnrc_pktbuf_release(tx_sync);
     }
 }
 
@@ -1299,7 +1317,8 @@ static uint16_t _send_1st_fragment(gnrc_netif_t *netif,
 
 static uint16_t _send_nth_fragment(gnrc_netif_t *netif,
                                    gnrc_sixlowpan_frag_fb_t *fbuf,
-                                   unsigned page)
+                                   unsigned page,
+                                   gnrc_pktsnip_t **tx_sync)
 {
     gnrc_pktsnip_t *frag, *pkt = fbuf->pkt;
     sixlowpan_sfr_rfrag_t *hdr;
@@ -1329,6 +1348,10 @@ static uint16_t _send_nth_fragment(gnrc_netif_t *netif,
                                               fbuf->offset);
     /* copy remaining packet snips */
     local_offset = _copy_pkt_to_frag(data, pkt, frag_size, local_offset);
+    if (IS_USED(MODULE_GNRC_TX_SYNC) && *tx_sync && (local_offset >= pkt->size)) {
+        gnrc_pkt_append(pkt, *tx_sync);
+        *tx_sync = NULL;
+    }
     DEBUG("6lo sfr: send subsequent fragment (tag: %u, X: %i, seq: %u, "
           "frag_size: %u, offset: %u)\n",
           hdr->base.tag, sixlowpan_sfr_rfrag_ack_req(hdr),

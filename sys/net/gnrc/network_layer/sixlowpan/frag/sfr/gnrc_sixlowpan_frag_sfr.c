@@ -142,12 +142,15 @@ static void _clean_up_fbuf(gnrc_sixlowpan_frag_fb_t *fbuf, int error);
  * @param[in] netif         Network interface to send fragment over
  * @param[in] fbuf          Fragmentation buffer for the datagram to fragment
  * @param[in] page          Current 6Lo dispatch parsing page.
+ * @param[in,out] tx_sync   Packet snip used to synchronize with transmission, if gnrc_tx_sync is
+ *                          used
  *
  * @return  Size of the fragment
  */
 static uint16_t _send_1st_fragment(gnrc_netif_t *netif,
                                    gnrc_sixlowpan_frag_fb_t *fbuf,
-                                   unsigned page);
+                                   unsigned page,
+                                   gnrc_pktsnip_t **tx_sync);
 
 /**
  * @brief   Send subsequent fragment.
@@ -323,7 +326,7 @@ void gnrc_sixlowpan_frag_sfr_send(gnrc_pktsnip_t *pkt, void *ctx,
 
     if (fbuf->offset == 0) {
         DEBUG("6lo sfr: sending first fragment\n");
-        res = _send_1st_fragment(netif, fbuf, page);
+        res = _send_1st_fragment(netif, fbuf, page, &tx_sync);
         if (res == 0) {
             DEBUG("6lo sfr: error sending first fragment\n");
             /* _send_1st_fragment only returns 0 if there is a memory problem */
@@ -1260,7 +1263,7 @@ static void _clean_up_fbuf(gnrc_sixlowpan_frag_fb_t *fbuf, int error)
 
 static uint16_t _send_1st_fragment(gnrc_netif_t *netif,
                                    gnrc_sixlowpan_frag_fb_t *fbuf,
-                                   unsigned page)
+                                   unsigned page, gnrc_pktsnip_t **tx_sync)
 {
     gnrc_pktsnip_t *frag, *pkt = fbuf->pkt;
     sixlowpan_sfr_rfrag_t *hdr;
@@ -1302,6 +1305,10 @@ static uint16_t _send_1st_fragment(gnrc_netif_t *netif,
     sixlowpan_sfr_rfrag_set_offset(hdr, fbuf->datagram_size);
     /* don't copy netif header of pkt => pkt->next */
     frag_size = _copy_pkt_to_frag(data, pkt->next, frag_size, 0);
+    if (IS_USED(MODULE_GNRC_TX_SYNC) && *tx_sync && (frag_size >= fbuf->datagram_size)) {
+        gnrc_pkt_append(frag, *tx_sync);
+        *tx_sync = NULL;
+    }
 
     DEBUG("6lo sfr: send first fragment (tag: %u, X: %i, seq: %u, "
           "frag_size: %u, datagram_size: %u)\n",
@@ -1348,8 +1355,8 @@ static uint16_t _send_nth_fragment(gnrc_netif_t *netif,
                                               fbuf->offset);
     /* copy remaining packet snips */
     local_offset = _copy_pkt_to_frag(data, pkt, frag_size, local_offset);
-    if (IS_USED(MODULE_GNRC_TX_SYNC) && *tx_sync && (local_offset >= pkt->size)) {
-        gnrc_pkt_append(pkt, *tx_sync);
+    if (IS_USED(MODULE_GNRC_TX_SYNC) && *tx_sync && (local_offset >= fbuf->datagram_size)) {
+        gnrc_pkt_append(frag, *tx_sync);
         *tx_sync = NULL;
     }
     DEBUG("6lo sfr: send subsequent fragment (tag: %u, X: %i, seq: %u, "

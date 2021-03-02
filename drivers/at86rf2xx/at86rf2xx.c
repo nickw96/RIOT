@@ -122,6 +122,7 @@ void at86rf2xx_setup(at86rf2xx_t *dev, const at86rf2xx_params_t *params, uint8_t
     dev->idle_state = AT86RF2XX_STATE_TRX_OFF;
     /* radio state is P_ON when first powered-on */
     dev->state = AT86RF2XX_STATE_P_ON;
+    dev->status = 0;
     dev->pending_tx = 0;
 
 #if defined(MODULE_AT86RFA1) || defined(MODULE_AT86RFR2)
@@ -287,8 +288,6 @@ size_t at86rf2xx_tx_load(at86rf2xx_t *dev, const uint8_t *data,
 
 void at86rf2xx_tx_exec(at86rf2xx_t *dev)
 {
-    netdev_t *netdev = (netdev_t *)dev;
-
 #if AT86RF2XX_HAVE_RETRIES
     dev->tx_retries = -1;
 #endif
@@ -298,9 +297,6 @@ void at86rf2xx_tx_exec(at86rf2xx_t *dev)
     /* trigger sending of pre-loaded frame */
     at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_STATE,
                         AT86RF2XX_TRX_STATE__TX_START);
-    if (netdev->event_callback) {
-        netdev->event_callback(netdev, NETDEV_EVENT_TX_STARTED);
-    }
 }
 
 bool at86rf2xx_cca(at86rf2xx_t *dev)

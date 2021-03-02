@@ -63,6 +63,8 @@ ifneq (,$(filter msba2,$(BOARD)))
   USEMODULE += random
 endif
 
+CFLAGS_WITH_MACROS += -DMY_APPLICATION_DESCRIPTION="My cool IoT project"
+
 include $(RIOTBASE)/Makefile.include
 
 ifneq (,$(filter $(BOARD),$(BOARD_PROVIDES_NETIF)))

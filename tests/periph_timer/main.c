@@ -48,7 +48,7 @@ static void cb(void *arg, int chan)
     atomic_fetch_add(&fired, 1);
 }
 
-static int test_timer(unsigned num)
+static int test_timer(unsigned num, uint32_t speed)
 {
     unsigned set = 0;
 
@@ -61,9 +61,9 @@ static int test_timer(unsigned num)
     }
 
     /* initialize and halt timer */
-    if (timer_init(TIMER_DEV(num), TIMER_SPEED, cb, (void *)(COOKIE * num)) < 0) {
+    if (timer_init(TIMER_DEV(num), speed, cb, (void *)(COOKIE * num)) < 0) {
         printf("TIMER_%u: ERROR on initialization - skipping\n\n", num);
-        return 0;
+        return -1;
     }
     else {
         printf("TIMER_%u: initialization successful\n", num);
@@ -83,7 +83,7 @@ static int test_timer(unsigned num)
     }
     if (set == 0) {
         printf("TIMER_%u: ERROR setting any channel\n\n", num);
-        return 0;
+        return -1;
     }
     /* start the timer */
     printf("TIMER_%u: starting\n", num);
@@ -108,12 +108,21 @@ static int test_timer(unsigned num)
             printf(" - diff: %8" PRIu32 "\n", timeout - atomic_load(&timeouts[i - 1]));
         }
     }
-    return 1;
+    return 0;
+}
+
+static uint32_t timer_query_freq_wrapper(tim_t dev, uword_t index)
+{
+    if (IS_USED(MODULE_PERIPH_TIMER_QUERY_FREQ)) {
+        return timer_query_freq(dev, index);
+    }
+
+    return (index) ? 0 : TIMER_SPEED;
 }
 
 int main(void)
 {
-    int res = 0;
+    int failed = 0;
 
     puts("\nTest for peripheral TIMERs\n");
 
@@ -122,14 +131,20 @@ int main(void)
     /* test all configured timers */
     for (unsigned i = 0; i < TIMER_NUMOF; i++) {
         printf("\nTesting TIMER_%u:\n", i);
-        res += test_timer(i);
+        uint32_t freq;
+        for (uword_t j = 0; (freq = timer_query_freq_wrapper(TIMER_DEV(i), j)); j++) {
+            printf("Frequency: %" PRIu32 " Hz\n", freq);
+            if (test_timer(i, freq)) {
+                failed = 0;
+            }
+        }
     }
     /* draw conclusion */
-    if (res == TIMER_NUMOF) {
-        puts("\nTEST SUCCEEDED");
+    if (failed) {
+        puts("\nTEST FAILED");
     }
     else {
-        puts("\nTEST FAILED");
+        puts("\nTEST SUCCEEDED");
     }
 
     return 0;

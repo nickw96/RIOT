@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 
 #include "periph/timer.h"
@@ -35,28 +36,28 @@
 #define CHAN_OFFSET         (5000U)     /* fire every 5ms */
 #define COOKIE              (100U)      /* for checking if arg is passed */
 
-static volatile int fired;
-static volatile uint32_t sw_count;
-static volatile uint32_t timeouts[MAX_CHANNELS];
-static volatile unsigned args[MAX_CHANNELS];
+static atomic_uint fired;
+static atomic_uint_fast32_t sw_count;
+static atomic_uint_fast32_t timeouts[MAX_CHANNELS];
+static atomic_uintptr_t args[MAX_CHANNELS];
 
 static void cb(void *arg, int chan)
 {
-    timeouts[chan] = sw_count;
-    args[chan] = (unsigned)arg + chan;
-    fired++;
+    atomic_store(&timeouts[chan], sw_count);
+    atomic_store(&args[chan], (uintptr_t)arg + chan);
+    atomic_fetch_add(&fired, 1);
 }
 
 static int test_timer(unsigned num)
 {
-    int set = 0;
+    unsigned set = 0;
 
     /* reset state */
-    sw_count = 0;
-    fired = 0;
+    atomic_store(&sw_count, 0);
+    atomic_store(&fired, 0);
     for (unsigned i = 0; i < MAX_CHANNELS; i++) {
-        timeouts[i] = 0;
-        args[i] = UINT_MAX;
+        atomic_store(&timeouts[i], 0);
+        atomic_store(&args[i], UINTPTR_MAX);
     }
 
     /* initialize and halt timer */
@@ -89,21 +90,22 @@ static int test_timer(unsigned num)
     timer_start(TIMER_DEV(num));
     /* wait for all channels to fire */
     do {
-        ++sw_count;
-    } while (fired != set);
+        atomic_fetch_add(&sw_count, 1);
+    } while (atomic_load(&fired) != set);
     /* collect results */
-    for (int i = 0; i < fired; i++) {
-        if (args[i] != ((COOKIE * num) + i)) {
+    unsigned fired_at_end = atomic_load(&fired);
+    for (unsigned i = 0; i < fired_at_end; i++) {
+        if (atomic_load(&args[i]) != ((COOKIE * num) + i)) {
             printf("TIMER_%u: ERROR callback argument mismatch\n\n", num);
             return 0;
         }
-        printf("TIMER_%u: channel %i fired at SW count %8u",
-               num, i, (unsigned)timeouts[i]);
+        uint32_t timeout = atomic_load(&timeouts[i]);
+        printf("TIMER_%u: channel %i fired at SW count %8" PRIu32, num, i, timeout);
         if (i == 0) {
-            printf(" - init: %8u\n", (unsigned)timeouts[i]);
+            printf(" - init: %8" PRIu32 "\n", timeout);
         }
         else {
-            printf(" - diff: %8u\n", (unsigned)(timeouts[i] - timeouts[i - 1]));
+            printf(" - diff: %8" PRIu32 "\n", timeout - atomic_load(&timeouts[i - 1]));
         }
     }
     return 1;

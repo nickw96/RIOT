@@ -1,0 +1,3 @@
+CPU = rp2040
+
+# Put defined MCU peripherals here (in alphabetical order)

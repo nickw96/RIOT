@@ -21,12 +21,21 @@
 
 #include <stdio.h>
 
+#include "board.h"
+
 int main(void)
 {
     puts("Hello World!");
 
     printf("You are running RIOT on a(n) %s board.\n", RIOT_BOARD);
     printf("This board features a(n) %s MCU.\n", RIOT_MCU);
+
+#ifdef LED0_TOGGLE
+    while (1) {
+        for (volatile uint32_t i = 0; i < 1250000; i++) { }
+        LED0_TOGGLE;
+    }
+#endif
 
     return 0;
 }

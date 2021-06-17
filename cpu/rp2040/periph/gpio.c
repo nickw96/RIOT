@@ -30,12 +30,20 @@
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
+/**
+ *  @brief  Mask for which GPIO pin uses GPIO_IN or GPIO_OUT
+ */
+uint32_t gpio_mode_mask = 0LU;
+
 int gpio_init(gpio_t pin, gpio_mode_t mode)
 {
     volatile gpio_pad_ctrl_t *pad_config_reg = gpio_pad_register(pin);
     volatile gpio_io_ctrl_t *io_config_reg = gpio_io_register(pin);
     SIO->GPIO_OE_CLR.reg = 1LU << pin;
     SIO->GPIO_OUT_CLR.reg = 1LU << pin;
+
+    if(gpio_mode_mask & (1LU << pin))
+        gpio_mode_mask -= 1LU << pin;
 
     switch (mode) {
     case GPIO_IN:
@@ -126,6 +134,7 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
             *io_config_reg = io_config;
         }
         SIO->GPIO_OE_SET.reg = 1LU << pin;
+        gpio_mode_mask |= 1LU << pin;
         break;
     default:
         return -ENOTSUP;
@@ -135,7 +144,10 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
 
 int gpio_read(gpio_t pin)
 {
-    return SIO->GPIO_IN.reg & (1LU << pin);
+    if(gpio_mode_mask & (1LU << pin))
+        return SIO->GPIO_OUT.reg & (1LU << pin);
+    else
+        return SIO->GPIO_IN.reg & (1LU << pin);
 }
 
 void gpio_set(gpio_t pin)

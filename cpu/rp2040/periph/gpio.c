@@ -145,9 +145,9 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
 int gpio_read(gpio_t pin)
 {
     if(gpio_mode_mask & (1LU << pin))
-        return SIO->GPIO_OUT.reg & (1LU << pin);
+        return (SIO->GPIO_OUT.reg & (1LU << pin));
     else
-        return SIO->GPIO_IN.reg & (1LU << pin);
+        return (SIO->GPIO_IN.reg & (1LU << pin));
 }
 
 void gpio_set(gpio_t pin)

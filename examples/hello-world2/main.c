@@ -32,19 +32,16 @@ int main(void)
     printf("This board features a(n) %s MCU.\n", RIOT_MCU);
 
     gpio_t led = LED0_PIN;
+    gpio_t button = GPIO_PIN(0,0);
 
-    int led_state = 0;
+    int button_state = 0;
 
-    if (!gpio_init(led, GPIO_OUT)) {
+    if (!gpio_init(led, GPIO_OUT) && !gpio_init(button, GPIO_IN_PD)) {
         while (1) {
-            led_state = gpio_read(led);
+            button_state = gpio_read(button);
             for (volatile uint32_t i = 0; i < 1250000; i++) {}
-            if(led_state == 0) {
-                gpio_write(led, 1);
-            }
-            else {
-                gpio_write(led, 0);
-            }
+            if (button_state > 0)
+                gpio_toggle(led);
         }
     }
 

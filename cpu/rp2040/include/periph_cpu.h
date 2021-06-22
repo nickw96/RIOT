@@ -34,6 +34,11 @@ extern "C" {
 #define CLOCK_CORECLOCK     (125000000U)
 
 /**
+ * @brief   Clock for UART0 and UART1 peripherals
+ */
+#define CLOCK_CLKPERI       CLOCK_CORECLOCK
+
+/**
  * @brief   Periphery blocks that can be reset
  */
 #define RESETS_RESET_MASK               \
@@ -156,6 +161,19 @@ enum {
 };
 
 /**
+ * @brief   Overwrite the default gpio_t type definition
+ * @{
+ */
+#define HAVE_GPIO_T
+typedef uint32_t gpio_t;
+/** @} */
+
+/**
+ * @brief   Definition of a fitting UNDEF value
+ */
+#define GPIO_UNDEF          UINT32_MAX
+
+/**
  * @brief   Override GPIO active flank values
  * @{
  */
@@ -184,6 +202,13 @@ typedef struct {
     uint32_t irq_override           : 2;    /**< interrupt inversion override */
     uint32_t                        : 2;
 } gpio_io_ctrl_t;
+
+typedef struct {
+    UART0_Type *dev;
+    gpio_t rx_pin;
+    gpio_t tx_pin;
+    IRQn_Type irqn;
+} uart_conf_t;
 
 /**
  * @brief   Get the PAD control register for the given GPIO pin as word

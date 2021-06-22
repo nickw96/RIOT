@@ -31,17 +31,34 @@ int main(void)
     printf("You are running RIOT on a(n) %s board.\n", RIOT_BOARD);
     printf("This board features a(n) %s MCU.\n", RIOT_MCU);
 
-    gpio_t led = LED0_PIN;
-    gpio_t button = GPIO_PIN(0,0);
+    gpio_t led_in = LED0_PIN;
+    gpio_t led_pu = GPIO_PIN(0,4);
+    gpio_t led_pd = GPIO_PIN(0,5);
+    gpio_t button_in = GPIO_PIN(0,22);
+    gpio_t button_pu = GPIO_PIN(0,21);
+    gpio_t button_pd = GPIO_PIN(0,20);
 
-    int button_state = 0;
+    int button_in_state = 0;
+    int button_pu_state = 0;
+    int button_pd_state = 0;
 
-    if (!gpio_init(led, GPIO_OUT) && !gpio_init(button, GPIO_IN_PD)) {
+    if (!gpio_init(led_in, GPIO_OUT) &&
+     !gpio_init(button_in, GPIO_IN) && 
+     !gpio_init(button_pu, GPIO_IN_PU) && 
+     !gpio_init(button_pd, GPIO_IN_PD)  &&
+     !gpio_init(led_pu, GPIO_OUT) &&
+     !gpio_init(led_pd, GPIO_OUT)) {
         while (1) {
-            button_state = gpio_read(button);
+            button_in_state = gpio_read(button_in);
+            button_pu_state = gpio_read(button_pu);
+            button_pd_state = gpio_read(button_pd);
             for (volatile uint32_t i = 0; i < 1250000; i++) {}
-            if (button_state > 0)
-                gpio_toggle(led);
+            if (button_in_state > 0)
+                gpio_toggle(led_in);
+            if (button_pu_state > 0)
+                gpio_toggle(led_pu);
+            if (button_pd_state == 0)
+                gpio_toggle(led_pd);
         }
     }
 

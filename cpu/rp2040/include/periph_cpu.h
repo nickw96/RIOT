@@ -33,6 +33,11 @@ extern "C" {
 #define CLOCK_CORECLOCK     (125000000U)
 
 /**
+ * @brief   Clock for UART0 and UART1 peripherals
+ */
+#define CLOCK_CLKPERI       CLOCK_CORECLOCK
+
+/**
  * @brief   Periphery blocks that can be reset
  */
 #define RESETS_RESET_MASK               \

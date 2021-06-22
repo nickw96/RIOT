@@ -31,5 +31,33 @@ extern "C" {
 }
 #endif
 
+static const uart_conf_t uart_config[] = {
+    {
+        .dev = (void *) UART0;
+        .rx_pin = GPIO_PIN(0,1);
+        .tx_pin = GPIO_PIN(0,0);
+        .irqn = UART0_IRQ_IRQn;
+#ifdef MODULE_PERIPH_DMA
+        .dma = NULL;
+        .dma_chan = NULL;
+#endif
+    },
+    {
+        .dev = (void *) UART1;
+        .rx_pin = GPIO_PIN(0,8);
+        .tx_pin = GPIO_PIN(0,9);
+        .irqn = UART1_IRQ_IRQn;
+#ifdef MODULE_PERIPH_DMA
+        .dma = NULL;
+        .dma_chan = NULL;
+#endif
+    }
+}
+
+#define UART_0_ISR      (isr_uart0)
+#define UART_1_ISR      (isr_uart1)
+
+#define UART_NUMOF      ARRRAY_SIZE(uart_config)
+
 #endif /* PERIPH_CONF_H */
 /** @} */

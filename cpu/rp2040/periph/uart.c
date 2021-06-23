@@ -23,44 +23,118 @@
 
 #include "board.h"
 #include "bitarithm.h"
+#include "mutex.h"
 #include "periph/gpio.h"
 #include "periph/uart.h"
 #include "periph_cpu.h"
 #include "periph_conf.h"
+#include "reg_atomic.h"
+
+#include "assert.h"
 
 static uart_isr_ctx_t ctx[UART_NUMOF];
 
+static mutex_lock_t tx_lock = MUTEX_INIT;
+
+void _uart_baudrate(uart_t uart, uint32_t baudrate) {
+    assert(baudrate != 0);
+    UART0_Type *dev = uart_config[uart].dev;
+    uint32_t baud_rate_div = (8 * CLOCK_CLKPERI / baudrate);
+    uint32_t baud_ibrd = baud_rate_div >> 7;
+    uint32_t baud_fbrd;
+
+    if (baud_ibrd == 0) {
+        baud_ibrd = 1;
+        baud_fbrd = 0;
+    }
+    else if (baud_ibrd >= 65535) {
+        baud_ibrd = 65535;
+        baud_fbrd = 0;
+    }
+    else {
+        baud_fbrd = ((baud_rate_div & 0x7f) + 1) / 2;
+    }
+
+    reg_atomic_set(&(dev->UARTIBRD.reg), baud_ibrd & UART0_UARTIBRD_BAUD_DIVINT_Msk);
+    reg_atomic_set(&(dev->UARTFBRD.reg), baud_fbrd & UART0_UARTFBRD_BAUD_DIVFRAC_Msk);
+
+    reg_atomic_set(&(dev->UARTLCR_H.reg), 0);
+}
+
 int uart_mode(uart_t uart, uart_data_bits_t data_bits, uart_parity_t uart_parity,
                 uart_stop_bits_t stop_bits) {
-    UART0_Type *dev = (UART0_Type *) (uart_config[uart].dev);
-    
+    UART0_Type *dev = uart_config[uart].dev;
+
+    reg_atomic_clear(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_WLEN_Msk
+                                                | UART0_UARTLCR_H_STP2_Msk
+                                                | UART0_UARTLCR_H_EPS_Msk
+                                                | UART0_UARTLCR_H_PEN_Msk);
+
     switch (uart_parity) {
         case UART_PARITY_NONE:
-            dev->UARTLCR_H.bit.PEN = 0;
-            dev->UARTLCR_H.bit.EPS = 0;
             break;
         case UART_PARITY_EVEN:
-            dev->UARTLCR_H.bit.PEN = 1;
-            dev->UARTLCR_H.bit.EPS = 1;
+            reg_atomic_set(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_EPS_Msk
+                                                    | UART0_UARTLCR_H_PEN_Msk);
             break;
         case UART_PARITY_ODD:
-            dev->UARTLCR_H.bit.PEN = 1;
-            dev->UARTLCR_H.bit.EPS = 0;
+            reg_atomic_set(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_PEN_Msk);
             break;
         default:
             return UART_NOMODE;
     }
 
-    dev->UARTLCR_H.bit.WLEN = data_bits;
-    dev->UARTLCR_H.bit.STP2 = stop_bits;
+    reg_atomic_set(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_WLEN_Msk & data_bits);
+    reg_atomic_set(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_STP2_Msk & stop_bits);
 
     return UART_OK;
 }
 
 void uart_init_pins(uart_t uart) {
     gpio_init(uart_config[uart].tx_pin, GPIO_OUT);
+    volatile gpio_io_ctrl_t *io_config_reg_tx = gpio_io_register(uart_config[uart].tx_pin);
+    gpio_io_ctrl_t io_config_tx = {
+                .function_select = FUNCTION_SELECT_UART,
+                .output_overide = OUTPUT_OVERRIDE_NORMAL,
+                .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
+                .input_override = INPUT_OVERRIDE_NOMARL,
+                .irq_override = IRQ_OVERRIDE_NOMARL,
+            };
+    *io_config_reg_tx = io_config_tx;
     if(ctx[uart].rx_cb) {
         gpio_init(uart_config[uart].rx_pin, GPIO_IN_PU);
+        volatile gpio_io_ctrl_t *io_config_reg_rx = gpio_io_register(uart_config[uart].rx_pin);
+        gpio_io_ctrl_t io_config_rx = {
+                    .function_select = FUNCTION_SELECT_UART,
+                    .output_overide = OUTPUT_OVERRIDE_NORMAL,
+                    .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
+                    .input_override = INPUT_OVERRIDE_NOMARL,
+                    .irq_override = IRQ_OVERRIDE_NOMARL,
+                };
+        *io_config_reg_rx = io_config_rx;
+    }
+}
+
+void uart_deinit_pins(uart_t uart) {
+    volatile gpio_io_ctrl_t *io_config_reg_tx = gpio_io_register(uart_config[uart].tx_pin);
+    gpio_io_ctrl_t io_config_tx = {
+                .function_select = FUNCTION_SELECT_SIO,
+                .output_overide = OUTPUT_OVERRIDE_NORMAL,
+                .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
+                .input_override = INPUT_OVERRIDE_NOMARL,
+                .irq_override = IRQ_OVERRIDE_NOMARL,
+            };
+    *io_config_reg_tx = io_config_tx;
+    if(ctx[uart].rx_cb) {
+        volatile gpio_io_ctrl_t *io_config_reg_rx = gpio_io_register(uart_config[uart].rx_pin);
+        gpio_io_ctrl_t io_config_rx = {
+                    .function_select = FUNCTION_SELECT_SIO,
+                    .output_overide = OUTPUT_OVERRIDE_NORMAL,
+                    .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
+                    .input_override = INPUT_OVERRIDE_NOMARL,
+                    .irq_override = IRQ_OVERRIDE_NOMARL,
+                };
+        *io_config_reg_rx = io_config_rx;
     }
 }
 
@@ -69,41 +143,81 @@ int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
         return UART_NODEV;
     }
 
-    UART0_Type *dev = (UART0_Type *) (uart_config[uart].dev);
+    UART0_Type *dev = uart_config[uart].dev;
 
     /* register callback */
-    ctx[uart].rx_cb = rx_cb;
-    ctx[uart].arg = arg;
+    if (rx_cb) {
+        ctx[uart].rx_cb = rx_cb;
+        ctx[uart].arg = arg;
+        reg_atomic_set(&(dev->UARTIMSC), UART0_UARTIMSC_RXIM_Msk);
+    }
 
-    unsigned long reset_bit_mask = (uart) ? RESETS_RESET_uart1_Msk : RESETS_RESET_uart0_Msk;
-    RESETS->RESET |= reset_bit_mask;
-    RESETS->RESET &=  ~(reset_bit_mask);
+    reg_atomic_set(&(dev->UARTIMSC), UART0_UARTIMSC_TXIM_Msk
+                                        | UART0_UARTIMSC_RTIM_Msk);
 
-    while(~(RESETS->RESET_DONE) & reset_bit_mask) { /*wait until it's done */ }
+    uart_poweron(uart);
 
-    /* TODO clk*/
-    /* TODO enable crlf support*/
-    /* TODO configure baudrate */
+    _uart_baudrate(uart, baudrate);    
 
     if( uart_mode(uart, UART_DATA_BITS_8, UART_PARITIY_NONE, UART_STOP_BITS_1) == UART_NOMODE )
         return UART_NOMODE;
 
-    dev->UARTCR |= UART0_UARTCR_UARTEN_Msk | UART0_UARTCR_RXE_Msk | UART0_UARTCR_TXE_Msk;
-    dev->UARTLCR_H |= UART0_UARTLCR_H_FEN_Msk;
-    dev->UARTDMACR |= UART0_UARTDMACR_TXDMAE_Msk | UART0_UARTDMACR_RXDMAE_Msk;
-
-    /* TODO uart_init_pins*/
+    reg_atomic_set(&(dev->UARTCR.reg), UART0_UARTCR_UARTEN_Msk 
+                                        | UART0_UARTCR_RXE_Msk 
+                                        | UART0_UARTCR_TXE_Msk);
+    reg_atomic_set(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_FEN_Msk);
+    reg_atomic_set(&(dev->UARTDMACR.reg), UART0_UARTDMACR_TXDMAE_Msk 
+                                            | UART0_UARTDMACR_RXDMAE_Msk);
+    uart_init_pins(uart);
 
     return UART_OK;
 }
 
 void uart_write(uart_t uart, const uint8_t *data, size_t len) {
-    UART0_Type *dev = (UART0_Type *) (uart_config[uart].dev);
+    UART0_Type *dev = uart_config[uart].dev;
     
     for (size_t i = 0; i < len; ++i) {
-        while (dev->UARTFR & UART0_UARTFR_TXFF_Msk) { }
-        dev->UARTDR.bit.DATA = *data++;        
+        /* while (dev->UARTFR.bit & UART0_UARTFR_TXFF_Msk) { } */
+        if (dev->UARTFR.bit & UART0_UARTFR_TXFF_Msk) {
+            mutex_lock(&tx_lock);
+        }
+        reg_atomic_set(&(dev->UARTDR.reg), *data++ | UART0_UARTDR_DATA_Msk);        
     }
 }
 
-/* TODO uart_poweron/poweroff, isr_handler */
+void uart_poweron(uart_t uart) {
+    uint32_t reset_bit_mask = (uart) ? RESETS_RESET_uart1_Msk : RESETS_RESET_uart0_Msk;
+    reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
+    reg_atomic_clear(&(RESETS->RESET.reg), reset_bit_mask);
+
+    while(~(RESETS->RESET_DONE) & reset_bit_mask) { /*wait until it's done */ }
+}
+
+void uart_poweroff(uart_t uart) {
+    uint32_t reset_bit_mask = (uart) ? RESETS_RESET_uart1_Msk : RESETS_RESET_uart0_Msk;
+    reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
+}
+
+void isr_handler(uint8_t num) {
+    UART0_Type *dev = uart_config[uart].dev;
+
+    if (dev->UARTMIS & UART0_UARTMIS_RTMIS_Msk) {
+        reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_RTIC_Msk);
+    }
+    else if (dev->UARTMIS & UART0_UARTMIS_TXMIS_Msk) {
+        mutex_unlock(&tx_lock);
+        reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_TXIC_Msk);
+    }
+    else if (dev->UARTMIS & UART0_UARTMIS_RXMIS_Msk) {
+        ctx[num].rx_cb(ctx[num].arg, (uint8_t) (dev->UARTDR & UART0_UARTDR_DATA_Msk));
+        reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_RXIC_Msk);
+    }
+}
+
+void isr_uart0(void) {
+    isr_handler(0);
+}
+
+void isr_uart1(void) {
+    isr_handler(1);
+}

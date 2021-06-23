@@ -37,20 +37,12 @@ static const uart_conf_t uart_config[] = {
         .rx_pin = GPIO_PIN(0,1);
         .tx_pin = GPIO_PIN(0,0);
         .irqn = UART0_IRQ_IRQn;
-#ifdef MODULE_PERIPH_DMA
-        .dma = NULL;
-        .dma_chan = NULL;
-#endif
     },
     {
         .dev = (void *) UART1;
         .rx_pin = GPIO_PIN(0,8);
         .tx_pin = GPIO_PIN(0,9);
         .irqn = UART1_IRQ_IRQn;
-#ifdef MODULE_PERIPH_DMA
-        .dma = NULL;
-        .dma_chan = NULL;
-#endif
     }
 }
 

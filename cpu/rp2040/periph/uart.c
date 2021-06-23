@@ -138,6 +138,20 @@ void uart_deinit_pins(uart_t uart) {
     }
 }
 
+void uart_poweron(uart_t uart) {
+    uint32_t reset_bit_mask = (uart) ? RESETS_RESET_uart1_Msk : RESETS_RESET_uart0_Msk;
+    reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
+    reg_atomic_clear(&(RESETS->RESET.reg), reset_bit_mask);
+
+    while(~(RESETS->RESET_DONE) & reset_bit_mask) { /*wait until it's done */ }
+}
+
+void uart_poweroff(uart_t uart) {
+    uart_deinit_pins(uart);
+    uint32_t reset_bit_mask = (uart) ? RESETS_RESET_uart1_Msk : RESETS_RESET_uart0_Msk;
+    reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
+}
+
 int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
     if (uart >= UART_NUMOF) {
         return UART_NODEV;
@@ -183,19 +197,6 @@ void uart_write(uart_t uart, const uint8_t *data, size_t len) {
         }
         reg_atomic_set(&(dev->UARTDR.reg), *data++ | UART0_UARTDR_DATA_Msk);        
     }
-}
-
-void uart_poweron(uart_t uart) {
-    uint32_t reset_bit_mask = (uart) ? RESETS_RESET_uart1_Msk : RESETS_RESET_uart0_Msk;
-    reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
-    reg_atomic_clear(&(RESETS->RESET.reg), reset_bit_mask);
-
-    while(~(RESETS->RESET_DONE) & reset_bit_mask) { /*wait until it's done */ }
-}
-
-void uart_poweroff(uart_t uart) {
-    uint32_t reset_bit_mask = (uart) ? RESETS_RESET_uart1_Msk : RESETS_RESET_uart0_Msk;
-    reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
 }
 
 void isr_handler(uint8_t num) {

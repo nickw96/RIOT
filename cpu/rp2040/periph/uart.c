@@ -93,48 +93,20 @@ int uart_mode(uart_t uart, uart_data_bits_t data_bits, uart_parity_t uart_parity
 void uart_init_pins(uart_t uart) {
     gpio_init(uart_config[uart].tx_pin, GPIO_OUT);
     volatile gpio_io_ctrl_t *io_config_reg_tx = gpio_io_register(uart_config[uart].tx_pin);
-    gpio_io_ctrl_t io_config_tx = {
-                .function_select = FUNCTION_SELECT_UART,
-                .output_overide = OUTPUT_OVERRIDE_NORMAL,
-                .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
-                .input_override = INPUT_OVERRIDE_NOMARL,
-                .irq_override = IRQ_OVERRIDE_NOMARL,
-            };
-    *io_config_reg_tx = io_config_tx;
+    io_config_reg_tx->function_select = FUNCTION_SELECT_UART;
     if(ctx[uart].rx_cb) {
         gpio_init(uart_config[uart].rx_pin, GPIO_IN_PU);
         volatile gpio_io_ctrl_t *io_config_reg_rx = gpio_io_register(uart_config[uart].rx_pin);
-        gpio_io_ctrl_t io_config_rx = {
-                    .function_select = FUNCTION_SELECT_UART,
-                    .output_overide = OUTPUT_OVERRIDE_NORMAL,
-                    .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
-                    .input_override = INPUT_OVERRIDE_NOMARL,
-                    .irq_override = IRQ_OVERRIDE_NOMARL,
-                };
-        *io_config_reg_rx = io_config_rx;
+        io_config_reg_rx->function_select = FUNCTION_SELECT_UART;
     }
 }
 
 void uart_deinit_pins(uart_t uart) {
     volatile gpio_io_ctrl_t *io_config_reg_tx = gpio_io_register(uart_config[uart].tx_pin);
-    gpio_io_ctrl_t io_config_tx = {
-                .function_select = FUNCTION_SELECT_SIO,
-                .output_overide = OUTPUT_OVERRIDE_NORMAL,
-                .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
-                .input_override = INPUT_OVERRIDE_NOMARL,
-                .irq_override = IRQ_OVERRIDE_NOMARL,
-            };
-    *io_config_reg_tx = io_config_tx;
+    io_config_reg_tx->function_select = FUNCTION_SELECT_SIO;
     if(ctx[uart].rx_cb) {
         volatile gpio_io_ctrl_t *io_config_reg_rx = gpio_io_register(uart_config[uart].rx_pin);
-        gpio_io_ctrl_t io_config_rx = {
-                    .function_select = FUNCTION_SELECT_SIO,
-                    .output_overide = OUTPUT_OVERRIDE_NORMAL,
-                    .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
-                    .input_override = INPUT_OVERRIDE_NOMARL,
-                    .irq_override = IRQ_OVERRIDE_NOMARL,
-                };
-        *io_config_reg_rx = io_config_rx;
+        io_config_reg_rx->function_select = FUNCTION_SELECT_SIO;
     }
 }
 
@@ -166,8 +138,7 @@ int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
         reg_atomic_set(&(dev->UARTIMSC), UART0_UARTIMSC_RXIM_Msk);
     }
 
-    reg_atomic_set(&(dev->UARTIMSC), UART0_UARTIMSC_TXIM_Msk
-                                        | UART0_UARTIMSC_RTIM_Msk);
+    reg_atomic_set(&(dev->UARTIMSC), UART0_UARTIMSC_TXIM_Msk);
 
     uart_poweron(uart);
 
@@ -202,10 +173,7 @@ void uart_write(uart_t uart, const uint8_t *data, size_t len) {
 void isr_handler(uint8_t num) {
     UART0_Type *dev = uart_config[uart].dev;
 
-    if (dev->UARTMIS & UART0_UARTMIS_RTMIS_Msk) {
-        reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_RTIC_Msk);
-    }
-    else if (dev->UARTMIS & UART0_UARTMIS_TXMIS_Msk) {
+    if (dev->UARTMIS & UART0_UARTMIS_TXMIS_Msk) {
         mutex_unlock(&tx_lock);
         reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_TXIC_Msk);
     }

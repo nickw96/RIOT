@@ -1,1 +1,1 @@
-DEFAULT_MODULE += stdio_null
+DEFAULT_MODULE += stdio_uart

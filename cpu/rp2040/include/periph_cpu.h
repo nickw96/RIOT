@@ -67,7 +67,31 @@ extern "C" {
      RESETS_RESET_busctrl_Msk       |   \
      RESETS_RESET_adc_Msk)
 
+#define HAVE_GPIO_T
+typedef uint32_t gpio_t;
+
+#define GPIO_UNDEF              (0xffffffff)
+
 #define GPIO_PIN(port, pin)     (pin)
+
+#define HAVE_GPIO_MODE_T
+typedef enum {
+    GPIO_IN ,               /**< configure as input without pull resistor */
+    GPIO_IN_PD,             /**< configure as input with pull-down resistor */
+    GPIO_IN_PU,             /**< configure as input with pull-up resistor */
+    GPIO_OUT,               /**< configure as output in push-pull mode */
+    GPIO_OD,                /**< configure as output in open-drain mode without
+                             *   pull resistor */
+    GPIO_OD_PU              /**< configure as output in open-drain mode with
+                             *   pull resistor enabled */
+} gpio_mode_t;
+
+#define HAVE_GPIO_FLANK_T
+typedef enum {
+    GPIO_FALLING = 0,       /**< emit interrupt on falling flank */
+    GPIO_RISING = 1,        /**< emit interrupt on rising flank */
+    GPIO_BOTH = 2           /**< emit interrupt on both flanks */
+} gpio_flank_t;
 
 /**
  * @brief   Possible drive strength values for @ref gpio_pad_ctrl_t::driver_strength
@@ -174,6 +198,13 @@ typedef struct {
     uint32_t irq_override           : 2;    /**< interrupt inversion override */
     uint32_t                        : 2;
 } gpio_io_ctrl_t;
+
+typedef struct {
+    UART0_Type *dev;
+    gpio_t rx_pin;
+    gpio_t tx_pin;
+    IRQn_Type irqn;
+} uart_conf_t;
 
 /**
  * @brief   Get the PAD control register for the given GPIO pin

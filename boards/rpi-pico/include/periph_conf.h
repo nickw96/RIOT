@@ -22,6 +22,7 @@
 
 #include "cpu.h"
 #include "periph_cpu.h"
+#include "periph/gpio.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,23 +34,23 @@ extern "C" {
 
 static const uart_conf_t uart_config[] = {
     {
-        .dev = (void *) UART0;
-        .rx_pin = GPIO_PIN(0,1);
-        .tx_pin = GPIO_PIN(0,0);
-        .irqn = UART0_IRQ_IRQn;
+        .dev = UART0,
+        .rx_pin = GPIO_PIN(0,1),
+        .tx_pin = GPIO_PIN(0,0),
+        .irqn = UART0_IRQ_IRQn
     },
     {
-        .dev = (void *) UART1;
-        .rx_pin = GPIO_PIN(0,8);
-        .tx_pin = GPIO_PIN(0,9);
-        .irqn = UART1_IRQ_IRQn;
+        .dev = UART1,
+        .rx_pin = GPIO_PIN(0,8),
+        .tx_pin = GPIO_PIN(0,9),
+        .irqn = UART1_IRQ_IRQn
     }
-}
+};
 
 #define UART_0_ISR      (isr_uart0)
 #define UART_1_ISR      (isr_uart1)
 
-#define UART_NUMOF      ARRRAY_SIZE(uart_config)
+#define UART_NUMOF      ARRAY_SIZE(uart_config)
 
 #endif /* PERIPH_CONF_H */
 /** @} */

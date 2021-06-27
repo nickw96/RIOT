@@ -34,7 +34,7 @@
 
 static uart_isr_ctx_t ctx[UART_NUMOF];
 
-static mutex_lock_t tx_lock = MUTEX_INIT;
+//static mutex_t tx_lock = MUTEX_INIT;
 
 void _uart_baudrate(uart_t uart, uint32_t baudrate) {
     assert(baudrate != 0);
@@ -115,7 +115,7 @@ void uart_poweron(uart_t uart) {
     reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
     reg_atomic_clear(&(RESETS->RESET.reg), reset_bit_mask);
 
-    while(~(RESETS->RESET_DONE) & reset_bit_mask) { /*wait until it's done */ }
+    while(~(RESETS->RESET_DONE.reg) & reset_bit_mask) { /*wait until it's done */ }
 }
 
 void uart_poweroff(uart_t uart) {
@@ -135,16 +135,16 @@ int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
     if (rx_cb) {
         ctx[uart].rx_cb = rx_cb;
         ctx[uart].arg = arg;
-        reg_atomic_set(&(dev->UARTIMSC), UART0_UARTIMSC_RXIM_Msk);
+        reg_atomic_set(&(dev->UARTIMSC.reg), UART0_UARTIMSC_RXIM_Msk);
     }
 
-    reg_atomic_set(&(dev->UARTIMSC), UART0_UARTIMSC_TXIM_Msk);
+    //reg_atomic_set(&(dev->UARTIMSC.reg), UART0_UARTIMSC_TXIM_Msk);
 
     uart_poweron(uart);
 
     _uart_baudrate(uart, baudrate);    
 
-    if( uart_mode(uart, UART_DATA_BITS_8, UART_PARITIY_NONE, UART_STOP_BITS_1) == UART_NOMODE )
+    if( uart_mode(uart, UART_DATA_BITS_8, UART_PARITY_NONE, UART_STOP_BITS_1) == UART_NOMODE )
         return UART_NOMODE;
 
     reg_atomic_set(&(dev->UARTCR.reg), UART0_UARTCR_UARTEN_Msk 
@@ -162,23 +162,23 @@ void uart_write(uart_t uart, const uint8_t *data, size_t len) {
     UART0_Type *dev = uart_config[uart].dev;
     
     for (size_t i = 0; i < len; ++i) {
-        /* while (dev->UARTFR.bit & UART0_UARTFR_TXFF_Msk) { } */
-        if (dev->UARTFR.bit & UART0_UARTFR_TXFF_Msk) {
+        while (dev->UARTFR.bit.TXFF) { }
+        /* if (dev->UARTFR.bit.TXFF) {
             mutex_lock(&tx_lock);
-        }
+        } */
         reg_atomic_set(&(dev->UARTDR.reg), *data++ | UART0_UARTDR_DATA_Msk);        
     }
 }
 
 void isr_handler(uint8_t num) {
-    UART0_Type *dev = uart_config[uart].dev;
+    UART0_Type *dev = uart_config[num].dev;
 
-    if (dev->UARTMIS & UART0_UARTMIS_TXMIS_Msk) {
+    /*if (dev->UARTMIS.bit.TXMIS) {
         mutex_unlock(&tx_lock);
         reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_TXIC_Msk);
     }
-    else if (dev->UARTMIS & UART0_UARTMIS_RXMIS_Msk) {
-        ctx[num].rx_cb(ctx[num].arg, (uint8_t) (dev->UARTDR & UART0_UARTDR_DATA_Msk));
+    else */ if (dev->UARTMIS.bit.RXMIS) {
+        ctx[num].rx_cb(ctx[num].arg, (uint8_t) (dev->UARTDR.bit.DATA));
         reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_RXIC_Msk);
     }
 }

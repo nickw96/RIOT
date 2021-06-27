@@ -2,3 +2,4 @@ CPU_CORE := cortex-m0plus
 include $(RIOTCPU)/cortexm_common/Makefile.features
 
 FEATURES_PROVIDED += periph_gpio
+FEATURES_PROVIDED += periph_uart

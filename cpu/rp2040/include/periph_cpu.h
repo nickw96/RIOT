@@ -14,6 +14,7 @@
  * @brief           RP2040 specific definitions for handling peripherals
  *
  * @author          Fabian Hüßler <fabian.huessler@ovgu.de>
+ * @author          Marian Buschsieweke <marian.buschsieweke@ovgu.de>
  */
 
 #ifndef PERIPH_CPU_H
@@ -66,32 +67,6 @@ extern "C" {
      RESETS_RESET_dma_Msk           |   \
      RESETS_RESET_busctrl_Msk       |   \
      RESETS_RESET_adc_Msk)
-
-#define HAVE_GPIO_T
-typedef uint32_t gpio_t;
-
-#define GPIO_UNDEF              (0xffffffff)
-
-#define GPIO_PIN(port, pin)     (pin)
-
-#define HAVE_GPIO_MODE_T
-typedef enum {
-    GPIO_IN ,               /**< configure as input without pull resistor */
-    GPIO_IN_PD,             /**< configure as input with pull-down resistor */
-    GPIO_IN_PU,             /**< configure as input with pull-up resistor */
-    GPIO_OUT,               /**< configure as output in push-pull mode */
-    GPIO_OD,                /**< configure as output in open-drain mode without
-                             *   pull resistor */
-    GPIO_OD_PU              /**< configure as output in open-drain mode with
-                             *   pull resistor enabled */
-} gpio_mode_t;
-
-#define HAVE_GPIO_FLANK_T
-typedef enum {
-    GPIO_FALLING = 0,       /**< emit interrupt on falling flank */
-    GPIO_RISING = 1,        /**< emit interrupt on rising flank */
-    GPIO_BOTH = 2           /**< emit interrupt on both flanks */
-} gpio_flank_t;
 
 /**
  * @brief   Possible drive strength values for @ref gpio_pad_ctrl_t::driver_strength
@@ -176,12 +151,45 @@ enum {
  * @brief   Possible function values for @ref gpio_io_ctrl_t::irqw_override
  */
 enum {
-    IRQ_OVERRIDE_NOMARL,            /**< don't mess with IRQ signal */
+    IRQ_OVERRIDE_NORMAL,            /**< don't mess with IRQ signal */
     IRQ_OVERRIDE_INVERT,            /**< invert IRQ signal */
     IRQ_OVERRIDE_LOW,               /**< set IRQ signal to low */
     IRQ_OVERRIDE_HIGH,              /**< set IRQ signal to high */
     IRQ_OVERRIDE_NUMOF              /**< number of possible IRQ override settings */
 };
+
+#define HAVE_GPIO_T
+typedef uint32_t gpio_t;
+
+#define GPIO_UNDEF              (0xffffffff)
+
+#define GPIO_PIN(port, pin)     (pin)
+
+#define HAVE_GPIO_MODE_T
+typedef enum {
+    GPIO_IN ,               /**< configure as input without pull resistor */
+    GPIO_IN_PD,             /**< configure as input with pull-down resistor */
+    GPIO_IN_PU,             /**< configure as input with pull-up resistor */
+    GPIO_OUT,               /**< configure as output in push-pull mode */
+    GPIO_OD,                /**< configure as output in open-drain mode without
+                             *   pull resistor */
+    GPIO_OD_PU              /**< configure as output in open-drain mode with
+                             *   pull resistor enabled */
+} gpio_mode_t;
+
+/**
+ * @brief   Override GPIO active flank values
+ * @{
+ */
+#define HAVE_GPIO_FLANK_T
+typedef enum {
+    GPIO_LEVEL_LOW  = 0x1,          /**< emit interrupt level-triggered on low input */
+    GPIO_LEVEL_HIGH = 0x2,          /**< emit interrupt level-triggered on low input */
+    GPIO_FALLING    = 0x4,          /**< emit interrupt on falling flank */
+    GPIO_RISING     = 0x8,          /**< emit interrupt on rising flank */
+    GPIO_BOTH       = 0xc           /**< emit interrupt on both flanks */
+} gpio_flank_t;
+/** @} */
 
 /**
  * @brief   Memory layout of GPIO control register in IO bank 0
@@ -207,19 +215,35 @@ typedef struct {
 } uart_conf_t;
 
 /**
- * @brief   Get the PAD control register for the given GPIO pin
+ * @brief   Get the PAD control register for the given GPIO pin as word
  */
-static inline volatile gpio_pad_ctrl_t * gpio_pad_register(uint8_t pin)
+static inline volatile uint32_t * gpio_pad_register_u32(uint8_t pin)
 {
-    return (gpio_pad_ctrl_t *)(PADS_BANK0_BASE + 4 + (pin << 2));
+    return (uint32_t *)(PADS_BANK0_BASE + 4 + (pin << 2));
 }
 
 /**
- * @brief   Get the IO control register for the given GPIO pin
+ * @brief   Get the PAD control register for the given GPIO pin as struct
+ */
+static inline volatile gpio_pad_ctrl_t * gpio_pad_register(uint8_t pin)
+{
+    return (gpio_pad_ctrl_t *)gpio_pad_register_u32(pin);
+}
+
+/**
+ * @brief   Get the IO control register for the given GPIO pin as word
+ */
+static inline volatile uint32_t * gpio_io_register_u32(uint8_t pin)
+{
+    return (uint32_t *)(IO_BANK0_BASE + 4 + (pin << 3));
+}
+
+/**
+ * @brief   Get the IO control register for the given GPIO pin as struct
  */
 static inline volatile gpio_io_ctrl_t * gpio_io_register(uint8_t pin)
 {
-    return (gpio_io_ctrl_t *)(IO_BANK0_BASE + 4 + (pin << 3));
+    return (gpio_io_ctrl_t *)gpio_io_register_u32(pin);
 }
 
 /**

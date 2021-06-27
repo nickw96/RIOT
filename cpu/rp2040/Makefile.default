@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 DEFAULT_MODULE += stdio_uart
+=======
+DEFAULT_MODULE += stdio_null
+>>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7

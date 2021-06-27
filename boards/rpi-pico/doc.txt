@@ -49,6 +49,13 @@ since the RP2040 contains no internal flash.
 | LED0   | ???? |
 | SW0    | ???? |
 
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HEAD
+====================================================================================================
+### Pinout
+
+![Pinout Diagram of RPi Pico](https://projects-static.raspberrypi.org/projects/getting-started-with-the-pico/f009ad94826c2f0cd7573a295897e76955301096/en/images/Pico-R3-Pinout.png)
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
 ## Flashing the Board
 
 ### Flashing the Board Using the Bootloader

@@ -149,8 +149,6 @@ int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
 
     UART0_Type *dev = uart_config[uart].dev;
 
-    _irq_enable(uart, rx_cb, arg);
-
     uart_poweron(uart);
 
     _uart_baudrate(uart, baudrate);    
@@ -165,6 +163,8 @@ int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
     reg_atomic_set(&(dev->UARTDMACR.reg), UART0_UARTDMACR_TXDMAE_Msk 
                                             | UART0_UARTDMACR_RXDMAE_Msk);
     uart_init_pins(uart);
+
+    _irq_enable(uart, rx_cb, arg);
 
     return UART_OK;
 }

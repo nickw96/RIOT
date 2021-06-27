@@ -14,6 +14,10 @@
  * @brief           RP2040 specific definitions for handling peripherals
  *
  * @author          Fabian Hüßler <fabian.huessler@ovgu.de>
+<<<<<<< HEAD
+=======
+ * @author          Marian Buschsieweke <marian.buschsieweke@ovgu.de>
+>>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
  */
 
 #ifndef PERIPH_CPU_H
@@ -33,11 +37,14 @@ extern "C" {
 #define CLOCK_CORECLOCK     (125000000U)
 
 /**
+<<<<<<< HEAD
  * @brief   Clock for UART0 and UART1 peripherals
  */
 #define CLOCK_CLKPERI       CLOCK_CORECLOCK
 
 /**
+=======
+>>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
  * @brief   Periphery blocks that can be reset
  */
 #define RESETS_RESET_MASK               \
@@ -67,6 +74,7 @@ extern "C" {
      RESETS_RESET_busctrl_Msk       |   \
      RESETS_RESET_adc_Msk)
 
+<<<<<<< HEAD
 #define HAVE_GPIO_T
 typedef uint32_t gpio_t;
 
@@ -93,6 +101,10 @@ typedef enum {
     GPIO_BOTH = 2           /**< emit interrupt on both flanks */
 } gpio_flank_t;
 
+=======
+#define GPIO_PIN(port, pin)     (pin)
+
+>>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
 /**
  * @brief   Possible drive strength values for @ref gpio_pad_ctrl_t::driver_strength
  */
@@ -176,7 +188,11 @@ enum {
  * @brief   Possible function values for @ref gpio_io_ctrl_t::irqw_override
  */
 enum {
+<<<<<<< HEAD
     IRQ_OVERRIDE_NOMARL,            /**< don't mess with IRQ signal */
+=======
+    IRQ_OVERRIDE_NORMAL,            /**< don't mess with IRQ signal */
+>>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
     IRQ_OVERRIDE_INVERT,            /**< invert IRQ signal */
     IRQ_OVERRIDE_LOW,               /**< set IRQ signal to low */
     IRQ_OVERRIDE_HIGH,              /**< set IRQ signal to high */
@@ -184,6 +200,23 @@ enum {
 };
 
 /**
+<<<<<<< HEAD
+=======
+ * @brief   Override GPIO active flank values
+ * @{
+ */
+#define HAVE_GPIO_FLANK_T
+typedef enum {
+    GPIO_LEVEL_LOW  = 0x1,          /**< emit interrupt level-triggered on low input */
+    GPIO_LEVEL_HIGH = 0x2,          /**< emit interrupt level-triggered on low input */
+    GPIO_FALLING    = 0x4,          /**< emit interrupt on falling flank */
+    GPIO_RISING     = 0x8,          /**< emit interrupt on rising flank */
+    GPIO_BOTH       = 0xc           /**< emit interrupt on both flanks */
+} gpio_flank_t;
+/** @} */
+
+/**
+>>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
  * @brief   Memory layout of GPIO control register in IO bank 0
  */
 typedef struct {
@@ -199,6 +232,7 @@ typedef struct {
     uint32_t                        : 2;
 } gpio_io_ctrl_t;
 
+<<<<<<< HEAD
 typedef struct {
     UART0_Type *dev;
     gpio_t rx_pin;
@@ -220,6 +254,38 @@ static inline volatile gpio_pad_ctrl_t * gpio_pad_register(uint8_t pin)
 static inline volatile gpio_io_ctrl_t * gpio_io_register(uint8_t pin)
 {
     return (gpio_io_ctrl_t *)(IO_BANK0_BASE + 4 + (pin << 3));
+=======
+/**
+ * @brief   Get the PAD control register for the given GPIO pin as word
+ */
+static inline volatile uint32_t * gpio_pad_register_u32(uint8_t pin)
+{
+    return (uint32_t *)(PADS_BANK0_BASE + 4 + (pin << 2));
+}
+
+/**
+ * @brief   Get the PAD control register for the given GPIO pin as struct
+ */
+static inline volatile gpio_pad_ctrl_t * gpio_pad_register(uint8_t pin)
+{
+    return (gpio_pad_ctrl_t *)gpio_pad_register_u32(pin);
+}
+
+/**
+ * @brief   Get the IO control register for the given GPIO pin as word
+ */
+static inline volatile uint32_t * gpio_io_register_u32(uint8_t pin)
+{
+    return (uint32_t *)(IO_BANK0_BASE + 4 + (pin << 3));
+}
+
+/**
+ * @brief   Get the IO control register for the given GPIO pin as struct
+ */
+static inline volatile gpio_io_ctrl_t * gpio_io_register(uint8_t pin)
+{
+    return (gpio_io_ctrl_t *)gpio_io_register_u32(pin);
+>>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
 }
 
 /**

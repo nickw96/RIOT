@@ -22,7 +22,11 @@
 #include "cpu.h"
 #include "periph_conf.h"
 #include "periph_cpu.h"
+<<<<<<< HEAD
 //#include "periph/gpio.h"
+=======
+#include "periph/gpio.h"
+>>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
 
 #ifdef __cplusplus
 extern "C" {

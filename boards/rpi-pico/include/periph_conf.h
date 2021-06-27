@@ -41,8 +41,8 @@ static const uart_conf_t uart_config[] = {
     },
     {
         .dev = UART1,
-        .rx_pin = GPIO_PIN(0,8),
-        .tx_pin = GPIO_PIN(0,9),
+        .rx_pin = GPIO_PIN(0,9),
+        .tx_pin = GPIO_PIN(0,8),
         .irqn = UART1_IRQ_IRQn
     }
 };

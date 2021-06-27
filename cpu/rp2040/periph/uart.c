@@ -37,6 +37,22 @@ static uart_isr_ctx_t ctx[UART_NUMOF];
 
 //static mutex_t tx_lock = MUTEX_INIT;
 
+void _irq_enable(uart_t uart, uart_rx_cb_t rx_cb, void *arg) {
+    UART0_Type *dev = uart_config[uart].dev;
+    unsigned irq_state = irq_disable();
+    //reg_atomic_clear(&(dev->UARTIMSC.reg), 0xffffffff);
+    /* register callback */
+    if (rx_cb) {
+        ctx[uart].rx_cb = rx_cb;
+        ctx[uart].arg = arg;
+        reg_atomic_set(&(dev->UARTIMSC.reg), UART0_UARTIMSC_RXIM_Msk);
+    }
+
+    //reg_atomic_set(&(dev->UARTIMSC.reg), UART0_UARTIMSC_TXIM_Msk);
+    irq_restore(irq_state);
+    NVIC_EnableIRQ(uart_config[uart].irqn);
+}
+
 void _uart_baudrate(uart_t uart, uint32_t baudrate) {
     assert(baudrate != 0);
     UART0_Type *dev = uart_config[uart].dev;
@@ -125,23 +141,6 @@ void uart_poweroff(uart_t uart) {
     reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
 }
 
-void _irq_enable(uart_t uart, uart_rx_cb_t rx_cb, void *arg) {
-    UART0_Type *dev = uart_config[uart].dev;
-    unsigned irq_state = irq_disable();
-    reg_atomic_clear(&(dev->UARTIMSC.reg), 0xffffffff);
-    /* register callback */
-    if (rx_cb) {
-        ctx[uart].rx_cb = rx_cb;
-        ctx[uart].arg = arg;
-        reg_atomic_set(&(dev->UARTIMSC.reg), UART0_UARTIMSC_RXIM_Msk);
-    }
-
-    //reg_atomic_set(&(dev->UARTIMSC.reg), UART0_UARTIMSC_TXIM_Msk);
-
-    irq_restore(irq_state);
-    NVIC_EnableIRQ(uart_config[uart].irqn);
-}
-
 int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
     if (uart >= UART_NUMOF) {
         return UART_NODEV;
@@ -150,6 +149,8 @@ int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
     UART0_Type *dev = uart_config[uart].dev;
 
     uart_poweron(uart);
+
+    _irq_enable(uart, rx_cb, arg);
 
     _uart_baudrate(uart, baudrate);    
 
@@ -163,8 +164,6 @@ int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
     reg_atomic_set(&(dev->UARTDMACR.reg), UART0_UARTDMACR_TXDMAE_Msk 
                                             | UART0_UARTDMACR_RXDMAE_Msk);
     uart_init_pins(uart);
-
-    _irq_enable(uart, rx_cb, arg);
 
     return UART_OK;
 }

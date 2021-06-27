@@ -22,10 +22,7 @@
 
 #include "cpu.h"
 #include "periph_cpu.h"
-<<<<<<< HEAD
 #include "periph/gpio.h"
-=======
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +32,6 @@ extern "C" {
 }
 #endif
 
-<<<<<<< HEAD
 static const uart_conf_t uart_config[] = {
     {
         .dev = UART0,
@@ -56,7 +52,5 @@ static const uart_conf_t uart_config[] = {
 
 #define UART_NUMOF      ARRAY_SIZE(uart_config)
 
-=======
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
 #endif /* PERIPH_CONF_H */
 /** @} */

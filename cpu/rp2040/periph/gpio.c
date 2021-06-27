@@ -21,24 +21,6 @@
 
 #include <errno.h>
 
-<<<<<<< HEAD
-#include "board.h"
-#include "bitarithm.h"
-#include "periph/gpio.h"
-#include "periph_cpu.h"
-#include "periph_conf.h"
-
-#define ENABLE_DEBUG 0
-#include "debug.h"
-
-/**
- *  @brief  Mask for which GPIO pin uses GPIO_IN or GPIO_OUT
- */
-uint32_t gpio_mode_mask = 0LU;
-
-int gpio_init(gpio_t pin, gpio_mode_t mode)
-{
-=======
 #include "bitarithm.h"
 #include "board.h"
 #include "irq.h"
@@ -60,43 +42,19 @@ static void *_args[GPIO_PIN_NUMOF];
 int gpio_init(gpio_t pin, gpio_mode_t mode)
 {
     assert(pin < GPIO_PIN_NUMOF);
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
     volatile gpio_pad_ctrl_t *pad_config_reg = gpio_pad_register(pin);
     volatile gpio_io_ctrl_t *io_config_reg = gpio_io_register(pin);
     SIO->GPIO_OE_CLR.reg = 1LU << pin;
     SIO->GPIO_OUT_CLR.reg = 1LU << pin;
 
-<<<<<<< HEAD
-    if(gpio_mode_mask & (1LU << pin))
-        gpio_mode_mask -= 1LU << pin;
-
-=======
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
     switch (mode) {
     case GPIO_IN:
         {
             gpio_pad_ctrl_t pad_config = {
-<<<<<<< HEAD
-                .slew_rate_fast = 0,
-                .schmitt_trig_enable = 0,
-                .pull_down_enable = 0,
-                .pull_up_enable = 0,
-                .drive_strength = DRIVE_STRENGTH_2MA,
-                .input_enable = 1,
-                .output_disable = 0
-            };
-            gpio_io_ctrl_t io_config = {
-                .function_select = FUNCTION_SELECT_SIO,
-                .output_overide = OUTPUT_OVERRIDE_NORMAL,
-                .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
-                .input_override = INPUT_OVERRIDE_NOMARL,
-                .irq_override = IRQ_OVERRIDE_NOMARL,
-=======
                 .input_enable = 1,
             };
             gpio_io_ctrl_t io_config = {
                 .function_select = FUNCTION_SELECT_SIO,
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
             };
             *pad_config_reg = pad_config;
             *io_config_reg = io_config;
@@ -105,28 +63,11 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
     case GPIO_IN_PD:
         {
             gpio_pad_ctrl_t pad_config = {
-<<<<<<< HEAD
-                .slew_rate_fast = 0,
-                .schmitt_trig_enable = 0,
-                .pull_down_enable = 1,
-                .pull_up_enable = 0,
-                .drive_strength = DRIVE_STRENGTH_2MA,
-                .input_enable = 1,
-                .output_disable = 0
-            };
-            gpio_io_ctrl_t io_config = {
-                .function_select = FUNCTION_SELECT_SIO,
-                .output_overide = OUTPUT_OVERRIDE_NORMAL,
-                .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
-                .input_override = INPUT_OVERRIDE_NOMARL,
-                .irq_override = IRQ_OVERRIDE_NOMARL,
-=======
                 .pull_down_enable = 1,
                 .input_enable = 1,
             };
             gpio_io_ctrl_t io_config = {
                 .function_select = FUNCTION_SELECT_SIO,
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
             };
             *pad_config_reg = pad_config;
             *io_config_reg = io_config;
@@ -135,28 +76,11 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
     case GPIO_IN_PU:
         {
             gpio_pad_ctrl_t pad_config = {
-<<<<<<< HEAD
-                .slew_rate_fast = 0,
-                .schmitt_trig_enable = 0,
-                .pull_down_enable = 0,
-                .pull_up_enable = 1,
-                .drive_strength = DRIVE_STRENGTH_2MA,
-                .input_enable = 1,
-                .output_disable = 0
-            };
-            gpio_io_ctrl_t io_config = {
-                .function_select = FUNCTION_SELECT_SIO,
-                .output_overide = OUTPUT_OVERRIDE_NORMAL,
-                .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
-                .input_override = INPUT_OVERRIDE_NOMARL,
-                .irq_override = IRQ_OVERRIDE_NOMARL,
-=======
                 .pull_up_enable = 1,
                 .input_enable = 1,
             };
             gpio_io_ctrl_t io_config = {
                 .function_select = FUNCTION_SELECT_SIO,
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
             };
             *pad_config_reg = pad_config;
             *io_config_reg = io_config;
@@ -165,36 +89,15 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
     case GPIO_OUT:
         {
             gpio_pad_ctrl_t pad_config = {
-<<<<<<< HEAD
-                .slew_rate_fast = 0,
-                .schmitt_trig_enable = 0,
-                .pull_down_enable = 0,
-                .pull_up_enable = 0,
-                .drive_strength = DRIVE_STRENGTH_2MA,
-                .input_enable = 1,
-                .output_disable = 0
-            };
-            gpio_io_ctrl_t io_config = {
-                .function_select = FUNCTION_SELECT_SIO,
-                .output_overide = OUTPUT_OVERRIDE_NORMAL,
-                .output_enable_overide = OUTPUT_ENABLE_OVERRIDE_NOMARL,
-                .input_override = INPUT_OVERRIDE_NOMARL,
-                .irq_override = IRQ_OVERRIDE_NOMARL,
-=======
                 .drive_strength = DRIVE_STRENGTH_12MA,
             };
             gpio_io_ctrl_t io_config = {
                 .function_select = FUNCTION_SELECT_SIO,
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
             };
             *pad_config_reg = pad_config;
             *io_config_reg = io_config;
         }
         SIO->GPIO_OE_SET.reg = 1LU << pin;
-<<<<<<< HEAD
-        gpio_mode_mask |= 1LU << pin;
-=======
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
         break;
     default:
         return -ENOTSUP;
@@ -204,19 +107,12 @@ int gpio_init(gpio_t pin, gpio_mode_t mode)
 
 int gpio_read(gpio_t pin)
 {
-<<<<<<< HEAD
-    if(gpio_mode_mask & (1LU << pin))
-        return (SIO->GPIO_OUT.reg & (1LU << pin));
-    else
-        return (SIO->GPIO_IN.reg & (1LU << pin));
-=======
     if (SIO->GPIO_OE.reg & (1LU << pin)) {
         /* pin is output: */
         return SIO->GPIO_OUT.reg & (1LU << pin);
     }
     /* pin is input: */
     return SIO->GPIO_IN.reg & (1LU << pin);
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7
 }
 
 void gpio_set(gpio_t pin)
@@ -243,8 +139,6 @@ void gpio_write(gpio_t pin, int value)
         gpio_clear(pin);
     }
 }
-<<<<<<< HEAD
-=======
 
 #ifdef MODULE_PERIPH_GPIO_IRQ
 static void _irq_enable(unsigned pin, unsigned flank)
@@ -316,4 +210,3 @@ void isr_io_bank0(void)
 }
 
 #endif /* MODULE_PERIPH_GPIO_IRQ */
->>>>>>> fd7c4071a8cbdc2f3c17b4985db2ebdee52bbec7

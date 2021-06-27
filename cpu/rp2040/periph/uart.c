@@ -23,6 +23,7 @@
 
 #include "board.h"
 #include "bitarithm.h"
+#include "irq.h"
 #include "mutex.h"
 #include "periph/gpio.h"
 #include "periph/uart.h"
@@ -124,13 +125,10 @@ void uart_poweroff(uart_t uart) {
     reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
 }
 
-int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
-    if (uart >= UART_NUMOF) {
-        return UART_NODEV;
-    }
-
+void _irq_enable(uart_t uart, uart_rx_cb_t rx_cb, void *arg) {
     UART0_Type *dev = uart_config[uart].dev;
-
+    unsigned irq_state = irq_disable();
+    reg_atomic_clear(&(dev->UARTIMSC.reg), 0xffffffff);
     /* register callback */
     if (rx_cb) {
         ctx[uart].rx_cb = rx_cb;
@@ -139,6 +137,19 @@ int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
     }
 
     //reg_atomic_set(&(dev->UARTIMSC.reg), UART0_UARTIMSC_TXIM_Msk);
+
+    irq_restore(irq_state);
+    NVIC_EnableIRQ(uart_config[uart].irqn);
+}
+
+int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
+    if (uart >= UART_NUMOF) {
+        return UART_NODEV;
+    }
+
+    UART0_Type *dev = uart_config[uart].dev;
+
+    _irq_enable(uart, rx_cb, arg);
 
     uart_poweron(uart);
 
@@ -170,14 +181,16 @@ void uart_write(uart_t uart, const uint8_t *data, size_t len) {
     }
 }
 
+
+
 void isr_handler(uint8_t num) {
     UART0_Type *dev = uart_config[num].dev;
 
-    /*if (dev->UARTMIS.bit.TXMIS) {
-        mutex_unlock(&tx_lock);
+    if (dev->UARTRIS.bit.TXRIS) {
+        //mutex_unlock(&tx_lock);
         reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_TXIC_Msk);
     }
-    else */ if (dev->UARTMIS.bit.RXMIS) {
+    else  if (dev->UARTRIS.bit.RXRIS) {
         ctx[num].rx_cb(ctx[num].arg, (uint8_t) (dev->UARTDR.bit.DATA));
         reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_RXIC_Msk);
     }

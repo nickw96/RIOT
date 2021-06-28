@@ -68,6 +68,8 @@ extern "C" {
      RESETS_RESET_busctrl_Msk       |   \
      RESETS_RESET_adc_Msk)
 
+#define GPIO_PIN(port, pin)     (pin)
+
 /**
  * @brief   Possible drive strength values for @ref gpio_pad_ctrl_t::driver_strength
  */
@@ -158,24 +160,18 @@ enum {
     IRQ_OVERRIDE_NUMOF              /**< number of possible IRQ override settings */
 };
 
+/**
+ * @brief   Overwrite the default gpio_t type definition
+ * @{
+ */
 #define HAVE_GPIO_T
 typedef uint32_t gpio_t;
+/** @} */
 
-#define GPIO_UNDEF              (0xffffffff)
-
-#define GPIO_PIN(port, pin)     (pin)
-
-#define HAVE_GPIO_MODE_T
-typedef enum {
-    GPIO_IN ,               /**< configure as input without pull resistor */
-    GPIO_IN_PD,             /**< configure as input with pull-down resistor */
-    GPIO_IN_PU,             /**< configure as input with pull-up resistor */
-    GPIO_OUT,               /**< configure as output in push-pull mode */
-    GPIO_OD,                /**< configure as output in open-drain mode without
-                             *   pull resistor */
-    GPIO_OD_PU              /**< configure as output in open-drain mode with
-                             *   pull resistor enabled */
-} gpio_mode_t;
+/**
+ * @brief   Definition of a fitting UNDEF value
+ */
+#define GPIO_UNDEF          UINT32_MAX
 
 /**
  * @brief   Override GPIO active flank values

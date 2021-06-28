@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2021 Nick Weiler, Justus Krebs, Franz Freitag
  * Copyright (C) 2021 Otto-von-Guericke Universität Magdeburg
  *
  * This file is subject to the terms and conditions of the GNU Lesser
@@ -17,6 +18,7 @@
  * @author      Franz Freitag <franz.freitag@st.ovgu.de>
  * @author      Justus Krebs <justus.krebs@st.ovgu.de>
  * @author      Nick Weiler <nick.weiler@st.ovgu.de>
+ * @author      Marian Buschsieweke <marian.buschsieweke@ovgu.de>
  *
  * @}
  */
@@ -34,29 +36,28 @@
 #include "assert.h"
 
 static uart_isr_ctx_t ctx[UART_NUMOF];
+static mutex_t tx_lock = MUTEX_INIT_LOCKED;
 
-//static mutex_t tx_lock = MUTEX_INIT;
-
-void _irq_enable(uart_t uart, uart_rx_cb_t rx_cb, void *arg) {
+void _irq_enable(uart_t uart)
+{
     UART0_Type *dev = uart_config[uart].dev;
     unsigned irq_state = irq_disable();
-    //reg_atomic_clear(&(dev->UARTIMSC.reg), 0xffffffff);
     /* register callback */
-    if (rx_cb) {
-        ctx[uart].rx_cb = rx_cb;
-        ctx[uart].arg = arg;
-        reg_atomic_set(&(dev->UARTIMSC.reg), UART0_UARTIMSC_RXIM_Msk);
+    uint32_t irqs = UART0_UARTIMSC_TXIM_Msk;
+    if (ctx[uart].rx_cb) {
+        irqs |= UART0_UARTIMSC_RXIM_Msk;
     }
+    dev->UARTIMSC.reg = irqs;
 
-    //reg_atomic_set(&(dev->UARTIMSC.reg), UART0_UARTIMSC_TXIM_Msk);
     irq_restore(irq_state);
     NVIC_EnableIRQ(uart_config[uart].irqn);
 }
 
-void _uart_baudrate(uart_t uart, uint32_t baudrate) {
-    assert(baudrate != 0);
+void _set_symbolrate(uart_t uart, uint32_t baud)
+{
+    assert(baud != 0);
     UART0_Type *dev = uart_config[uart].dev;
-    uint32_t baud_rate_div = (8 * CLOCK_CLKPERI / baudrate);
+    uint32_t baud_rate_div = (8 * CLOCK_CLKPERI / baud);
     uint32_t baud_ibrd = baud_rate_div >> 7;
     uint32_t baud_fbrd;
 
@@ -79,126 +80,132 @@ void _uart_baudrate(uart_t uart, uint32_t baudrate) {
 }
 
 int uart_mode(uart_t uart, uart_data_bits_t data_bits, uart_parity_t uart_parity,
-                uart_stop_bits_t stop_bits) {
+              uart_stop_bits_t stop_bits)
+{
     UART0_Type *dev = uart_config[uart].dev;
 
-    reg_atomic_clear(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_WLEN_Msk
-                                                | UART0_UARTLCR_H_STP2_Msk
-                                                | UART0_UARTLCR_H_EPS_Msk
-                                                | UART0_UARTLCR_H_PEN_Msk);
+    uint32_t config = (data_bits << UART0_UARTLCR_H_WLEN_Pos);
 
     switch (uart_parity) {
-        case UART_PARITY_NONE:
-            break;
-        case UART_PARITY_EVEN:
-            reg_atomic_set(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_EPS_Msk
-                                                    | UART0_UARTLCR_H_PEN_Msk);
-            break;
-        case UART_PARITY_ODD:
-            reg_atomic_set(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_PEN_Msk);
-            break;
-        default:
-            return UART_NOMODE;
+    case UART_PARITY_NONE:
+        break;
+    case UART_PARITY_EVEN:
+        config |= UART0_UARTLCR_H_EPS_Msk | UART0_UARTLCR_H_PEN_Msk;
+        break;
+    case UART_PARITY_ODD:
+        config |= UART0_UARTLCR_H_PEN_Msk;
+        break;
+    default:
+        return UART_NOMODE;
     }
 
-    reg_atomic_set(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_WLEN_Msk & data_bits);
-    reg_atomic_set(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_STP2_Msk & stop_bits);
+    if (stop_bits == UART_STOP_BITS_2) {
+        config |= UART0_UARTLCR_H_STP2_Msk;
+    }
+
+    dev->UARTLCR_H.reg = config;
 
     return UART_OK;
 }
 
-void uart_init_pins(uart_t uart) {
+void uart_init_pins(uart_t uart)
+{
     gpio_init(uart_config[uart].tx_pin, GPIO_OUT);
     volatile gpio_io_ctrl_t *io_config_reg_tx = gpio_io_register(uart_config[uart].tx_pin);
     io_config_reg_tx->function_select = FUNCTION_SELECT_UART;
-    if(ctx[uart].rx_cb) {
+    if (ctx[uart].rx_cb) {
         gpio_init(uart_config[uart].rx_pin, GPIO_IN_PU);
         volatile gpio_io_ctrl_t *io_config_reg_rx = gpio_io_register(uart_config[uart].rx_pin);
         io_config_reg_rx->function_select = FUNCTION_SELECT_UART;
     }
 }
 
-void uart_deinit_pins(uart_t uart) {
-    volatile gpio_io_ctrl_t *io_config_reg_tx = gpio_io_register(uart_config[uart].tx_pin);
-    io_config_reg_tx->function_select = FUNCTION_SELECT_SIO;
-    if(ctx[uart].rx_cb) {
-        volatile gpio_io_ctrl_t *io_config_reg_rx = gpio_io_register(uart_config[uart].rx_pin);
-        io_config_reg_rx->function_select = FUNCTION_SELECT_SIO;
+void uart_deinit_pins(uart_t uart)
+{
+    *gpio_io_register_u32(uart_config[uart].tx_pin) = 0;
+    *gpio_pad_register_u32(uart_config[uart].tx_pin) = 0;
+    SIO->GPIO_OE_CLR.reg = 1LU << uart_config[uart].tx_pin;
+    if (ctx[uart].rx_cb) {
+        *gpio_io_register_u32(uart_config[uart].rx_pin) = 0;
+        *gpio_pad_register_u32(uart_config[uart].rx_pin) = 0;
     }
 }
 
-void uart_poweron(uart_t uart) {
+void uart_poweron(uart_t uart)
+{
     uint32_t reset_bit_mask = (uart) ? RESETS_RESET_uart1_Msk : RESETS_RESET_uart0_Msk;
-    reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
-    reg_atomic_clear(&(RESETS->RESET.reg), reset_bit_mask);
-
-    while(~(RESETS->RESET_DONE.reg) & reset_bit_mask) { /*wait until it's done */ }
+    periph_reset(reset_bit_mask);
+    periph_reset_done(reset_bit_mask);
 }
 
-void uart_poweroff(uart_t uart) {
+void uart_poweroff(uart_t uart)
+{
     uart_deinit_pins(uart);
-    uint32_t reset_bit_mask = (uart) ? RESETS_RESET_uart1_Msk : RESETS_RESET_uart0_Msk;
-    reg_atomic_set(&(RESETS->RESET.reg), reset_bit_mask);
+    periph_reset((uart) ? RESETS_RESET_uart1_Msk : RESETS_RESET_uart0_Msk);
 }
 
-int uart_init(uart_t uart, uint32_t baudrate, uart_rx_cb_t rx_cb, void *arg) {
+int uart_init(uart_t uart, uint32_t baud, uart_rx_cb_t rx_cb, void *arg)
+{
     if (uart >= UART_NUMOF) {
         return UART_NODEV;
     }
 
     UART0_Type *dev = uart_config[uart].dev;
+    ctx[uart].rx_cb = rx_cb;
+    ctx[uart].arg = arg;
 
     uart_poweron(uart);
+    _set_symbolrate(uart, baud);
 
-    _irq_enable(uart, rx_cb, arg);
-
-    _uart_baudrate(uart, baudrate);    
-
-    if( uart_mode(uart, UART_DATA_BITS_8, UART_PARITY_NONE, UART_STOP_BITS_1) == UART_NOMODE )
+    if (uart_mode(uart, UART_DATA_BITS_8, UART_PARITY_NONE, UART_STOP_BITS_1) != UART_OK) {
         return UART_NOMODE;
+    }
 
-    reg_atomic_set(&(dev->UARTCR.reg), UART0_UARTCR_UARTEN_Msk 
-                                        | UART0_UARTCR_RXE_Msk 
+    /* enable UART */
+    reg_atomic_set(&dev->UARTCR.reg, UART0_UARTCR_UARTEN_Msk
+                                        | UART0_UARTCR_RXE_Msk
                                         | UART0_UARTCR_TXE_Msk);
-    reg_atomic_set(&(dev->UARTLCR_H.reg), UART0_UARTLCR_H_FEN_Msk);
-    reg_atomic_set(&(dev->UARTDMACR.reg), UART0_UARTDMACR_TXDMAE_Msk 
-                                            | UART0_UARTDMACR_RXDMAE_Msk);
     uart_init_pins(uart);
+
+    _irq_enable(uart);
 
     return UART_OK;
 }
 
-void uart_write(uart_t uart, const uint8_t *data, size_t len) {
+void uart_write(uart_t uart, const uint8_t *data, size_t len)
+{
     UART0_Type *dev = uart_config[uart].dev;
-    
-    for (size_t i = 0; i < len; ++i) {
-        while (dev->UARTFR.bit.TXFF) { }
-        /* if (dev->UARTFR.bit.TXFF) {
-            mutex_lock(&tx_lock);
-        } */
-        reg_atomic_set(&(dev->UARTDR.reg), *data++ | UART0_UARTDR_DATA_Msk);        
+
+    for (size_t i = 0; i < len; i++) {
+        dev->UARTDR.reg = data[i];
+        mutex_lock(&tx_lock);
     }
 }
 
 
 
-void isr_handler(uint8_t num) {
+void isr_handler(uint8_t num)
+{
     UART0_Type *dev = uart_config[num].dev;
 
-    if (dev->UARTRIS.bit.TXRIS) {
-        //mutex_unlock(&tx_lock);
-        reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_TXIC_Msk);
+    uint32_t status = dev->UARTMIS.reg;
+    dev->UARTICR.reg = status;
+
+    if (status & UART0_UARTMIS_TXMIS_Msk) {
+        mutex_unlock(&tx_lock);
     }
-    else  if (dev->UARTRIS.bit.RXRIS) {
-        ctx[num].rx_cb(ctx[num].arg, (uint8_t) (dev->UARTDR.bit.DATA));
-        reg_atomic_set(&(dev->UARTICR.reg), UART0_UARTICR_RXIC_Msk);
+
+    if (status & UART0_UARTMIS_RXMIS_Msk) {
+        ctx[num].rx_cb(ctx[num].arg, (uint8_t)dev->UARTDR.reg);
     }
 }
 
-void isr_uart0(void) {
+void isr_uart0(void)
+{
     isr_handler(0);
 }
 
-void isr_uart1(void) {
+void isr_uart1(void)
+{
     isr_handler(1);
 }
